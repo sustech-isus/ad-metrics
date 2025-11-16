@@ -35,6 +35,9 @@ def calculate_ade(
     predictions = np.array(predictions, dtype=np.float64)
     ground_truth = np.array(ground_truth, dtype=np.float64)
     
+    if len(predictions) == 0 or len(ground_truth) == 0:
+        raise ValueError("Empty trajectory: predictions and ground_truth must have at least one timestep")
+    
     if predictions.shape != ground_truth.shape:
         raise ValueError(
             f"Shape mismatch: predictions {predictions.shape} vs "
@@ -71,6 +74,9 @@ def calculate_fde(
     """
     predictions = np.array(predictions, dtype=np.float64)
     ground_truth = np.array(ground_truth, dtype=np.float64)
+    
+    if len(predictions) == 0 or len(ground_truth) == 0:
+        raise ValueError("Empty trajectory: predictions and ground_truth must have at least one timestep")
     
     if predictions.shape != ground_truth.shape:
         raise ValueError(
@@ -313,7 +319,11 @@ def calculate_nll(
     """
     predictions = np.array(predictions, dtype=np.float64)
     ground_truth = np.array(ground_truth, dtype=np.float64)
-    covariances = np.array(covariances, dtype=np.float64)
+    
+    if predictions.ndim != 3:
+        raise ValueError(
+            f"Predictions must be 3D (K, T, D), got shape {predictions.shape}"
+        )
     
     num_modes, num_timesteps, dims = predictions.shape
     
@@ -326,12 +336,30 @@ def calculate_nll(
     
     # Handle different covariance formats
     if covariances.ndim == 2:
-        # Diagonal covariances (K, T) - expand to full matrices
+        # Diagonal covariances (K, T) - validate shape
+        if covariances.shape != (num_modes, num_timesteps):
+            raise ValueError(
+                f"Covariance shape mismatch: expected ({num_modes}, {num_timesteps}), "
+                f"got {covariances.shape}"
+            )
+        # Expand to full matrices
         covs_full = np.zeros((num_modes, num_timesteps, dims, dims))
         for k in range(num_modes):
             for t in range(num_timesteps):
                 covs_full[k, t] = np.eye(dims) * covariances[k, t]
         covariances = covs_full
+    elif covariances.ndim == 4:
+        # Full covariance matrices - validate shape
+        if covariances.shape != (num_modes, num_timesteps, dims, dims):
+            raise ValueError(
+                f"Covariance shape mismatch: expected ({num_modes}, {num_timesteps}, {dims}, {dims}), "
+                f"got {covariances.shape}"
+            )
+    else:
+        raise ValueError(
+            f"Covariances must be 2D (K, T) for diagonal or 4D (K, T, D, D) for full, "
+            f"got {covariances.ndim}D with shape {covariances.shape}"
+        )
     
     # Calculate Gaussian log-likelihood for each mode
     log_likelihoods = []
@@ -419,7 +447,12 @@ def calculate_trajectory_metrics(
     ground_truth = np.array(ground_truth, dtype=np.float64)
     
     if multimodal:
-        # Multi-modal predictions
+        # Multi-modal predictions - validate shape
+        if predictions.ndim != 3:
+            raise ValueError(
+                f"Multi-modal predictions must be 3D (K, T, D), got shape {predictions.shape}"
+            )
+        
         ade_result = calculate_multimodal_ade(predictions, ground_truth)
         fde_result = calculate_multimodal_fde(predictions, ground_truth)
         
@@ -586,10 +619,16 @@ def _point_in_polygon(point: np.ndarray, polygon: np.ndarray) -> bool:
         if y > min(p1y, p2y):
             if y <= max(p1y, p2y):
                 if x <= max(p1x, p2x):
+                    # Calculate intersection only if edge is not horizontal
                     if p1y != p2y:
                         xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+                    else:
+                        # Horizontal edge: p1y == p2y
+                        # Ray crosses if point is to the left of the edge
+                        if x <= max(p1x, p2x):
+                            inside = not inside
         
         p1x, p1y = p2x, p2y
     

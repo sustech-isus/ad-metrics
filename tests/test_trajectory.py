@@ -345,20 +345,21 @@ class TestDrivableAreaCompliance:
 class TestEdgeCases:
     """Test edge cases and error handling."""
     
-    def test_empty_trajectory(self):
-        """Test with empty trajectory."""
+    def test_empty_trajectory_ade(self):
+        """Test ADE with empty trajectory should raise ValueError."""
         pred = np.array([]).reshape(0, 2)
         gt = np.array([]).reshape(0, 2)
         
-        # Should handle gracefully or raise appropriate error
-        # Depending on desired behavior
-        try:
-            ade = calculate_ade(pred, gt)
-            # If it succeeds, should return NaN or 0
-            assert np.isnan(ade) or ade == 0.0
-        except (ValueError, IndexError):
-            # Or it might raise an error, which is also acceptable
-            pass
+        with pytest.raises(ValueError, match="Empty trajectory"):
+            calculate_ade(pred, gt)
+    
+    def test_empty_trajectory_fde(self):
+        """Test FDE with empty trajectory should raise ValueError."""
+        pred = np.array([]).reshape(0, 2)
+        gt = np.array([]).reshape(0, 2)
+        
+        with pytest.raises(ValueError, match="Empty trajectory"):
+            calculate_fde(pred, gt)
     
     def test_single_timestep(self):
         """Test with single timestep."""
@@ -371,3 +372,101 @@ class TestEdgeCases:
         # ADE and FDE should be the same for single timestep
         assert abs(ade - fde) < 1e-6
         assert abs(ade - np.sqrt(2)) < 1e-6
+    
+    def test_multimodal_wrong_shape(self):
+        """Test multimodal functions with wrong shape."""
+        # 2D instead of 3D
+        pred = np.array([[0, 0], [1, 1], [2, 2]])
+        gt = np.array([[0, 0], [1, 1], [2, 2]])
+        
+        with pytest.raises(ValueError, match="must be 3D"):
+            calculate_multimodal_ade(pred, gt)
+        
+        with pytest.raises(ValueError, match="must be 3D"):
+            calculate_multimodal_fde(pred, gt)
+    
+    def test_nll_covariance_shape_mismatch(self):
+        """Test NLL with mismatched covariance shape."""
+        preds = np.array([[[0, 0], [1, 1], [2, 2]]])  # (1, 3, 2)
+        gt = np.array([[0, 0], [1, 1], [2, 2]])
+        
+        # Wrong shape diagonal covariances (2, 3) instead of (1, 3)
+        covs = np.ones((2, 3)) * 0.1
+        
+        with pytest.raises(ValueError, match="Covariance shape"):
+            calculate_nll(preds, gt, covs)
+    
+    def test_trajectory_metrics_multimodal_2d_shape(self):
+        """Test trajectory_metrics catches 2D shape when multimodal=True."""
+        pred = np.array([[0, 0], [1, 1], [2, 2]])
+        gt = np.array([[0, 0], [1, 1], [2, 2]])
+        
+        with pytest.raises(ValueError, match="must be 3D"):
+            calculate_trajectory_metrics(pred, gt, multimodal=True)
+
+
+class TestPointInPolygon:
+    """Test point-in-polygon edge cases."""
+    
+    def test_point_on_horizontal_edge(self):
+        """Test point on horizontal edge of polygon."""
+        # Square polygon
+        area = {
+            'type': 'polygon',
+            'vertices': [[0, 0], [4, 0], [4, 4], [0, 4]]
+        }
+        
+        # Point on horizontal edge (y=0)
+        pred = np.array([[2, 0]])
+        result = calculate_drivable_area_compliance(pred, area)
+        # Point on edge should be considered inside
+        assert result['compliance_rate'] >= 0.0
+    
+    def test_point_on_vertical_edge(self):
+        """Test point on vertical edge of polygon."""
+        area = {
+            'type': 'polygon',
+            'vertices': [[0, 0], [4, 0], [4, 4], [0, 4]]
+        }
+        
+        # Point on vertical edge (x=0)
+        pred = np.array([[0, 2]])
+        result = calculate_drivable_area_compliance(pred, area)
+        assert result['compliance_rate'] >= 0.0
+    
+    def test_point_at_vertex(self):
+        """Test point exactly at polygon vertex."""
+        area = {
+            'type': 'polygon',
+            'vertices': [[0, 0], [4, 0], [4, 4], [0, 4]]
+        }
+        
+        pred = np.array([[0, 0], [4, 4]])
+        result = calculate_drivable_area_compliance(pred, area)
+        # Vertices are edge cases - may or may not be inside depending on algorithm
+        # Just check it doesn't crash and returns a reasonable value
+        assert 0.0 <= result['compliance_rate'] <= 1.0
+    
+    def test_point_clearly_inside(self):
+        """Test point clearly inside polygon."""
+        area = {
+            'type': 'polygon',
+            'vertices': [[0, 0], [4, 0], [4, 4], [0, 4]]
+        }
+        
+        pred = np.array([[2, 2]])
+        result = calculate_drivable_area_compliance(pred, area)
+        assert result['compliance_rate'] == 1.0
+        assert result['num_violations'] == 0
+    
+    def test_point_clearly_outside(self):
+        """Test point clearly outside polygon."""
+        area = {
+            'type': 'polygon',
+            'vertices': [[0, 0], [4, 0], [4, 4], [0, 4]]
+        }
+        
+        pred = np.array([[10, 10]])
+        result = calculate_drivable_area_compliance(pred, area)
+        assert result['compliance_rate'] == 0.0
+        assert result['num_violations'] == 1

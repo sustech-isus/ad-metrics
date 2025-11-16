@@ -274,16 +274,6 @@ pytest tests/test_localization.py -v
 | `utils/transforms.py` | 11 | - | 95% |
 | **Total** | **374** | **89** | **92%** |
 
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-metric`)
-3. Add tests for new metrics
-4. Ensure all tests pass (`pytest tests/`)
-5. Submit a pull request
-
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
@@ -295,7 +285,7 @@ If you use this library in your research, please cite:
 ```bibtex
 @software{admetrics2025,
   title={AD-Metrics: Comprehensive Evaluation Metrics for Autonomous Driving},
-  author={Contributors},
+  author={},
   year={2025},
   url={https://github.com/naurril/ad-metrics}
 }
