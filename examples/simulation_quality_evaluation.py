@@ -7,13 +7,13 @@ sensor data (camera, LiDAR, radar) compared to real-world data.
 
 import numpy as np
 from admetrics.simulation import (
-    camera_image_quality,
-    lidar_point_cloud_quality,
-    radar_quality,
-    sensor_noise_characteristics,
-    multimodal_sensor_alignment,
-    temporal_consistency,
-    perception_sim2real_gap,
+    calculate_camera_image_quality,
+    calculate_lidar_point_cloud_quality,
+    calculate_radar_quality,
+    calculate_sensor_noise_characteristics,
+    calculate_multimodal_sensor_alignment,
+    calculate_temporal_consistency,
+    calculate_perception_sim2real_gap,
 )
 
 
@@ -40,7 +40,7 @@ def example_1_camera_quality():
     sim_images = sim_images * 1.1  # Slightly brighter
     sim_images = np.clip(sim_images + np.random.randn(*sim_images.shape) * 5, 0, 255)
     
-    quality = camera_image_quality(
+    quality = calculate_camera_image_quality(
         sim_images, 
         real_images,
         metrics=['psnr', 'color_distribution', 'brightness', 'contrast']
@@ -87,7 +87,7 @@ def example_2_lidar_quality():
         np.random.uniform(50, 200, 1200)  # Different intensity distribution
     ])
     
-    quality = lidar_point_cloud_quality(sim_points, real_points, max_range=100.0)
+    quality = calculate_lidar_point_cloud_quality(sim_points, real_points, max_range=100.0)
     
     print("LiDAR Quality Metrics:")
     print(f"  Chamfer Distance: {quality['chamfer_distance']:.3f} m")
@@ -129,7 +129,7 @@ def example_3_radar_quality():
         np.random.uniform(0, 35, 35)      # Different RCS distribution
     ])
     
-    quality = radar_quality(sim_radar, real_radar)
+    quality = calculate_radar_quality(sim_radar, real_radar)
     
     print("Radar Quality Metrics:")
     print(f"  Detection Density Ratio: {quality['detection_density_ratio']:.3f}")
@@ -164,7 +164,7 @@ def example_4_sensor_noise():
     sim_noise_std = 0.10  # Simulation often has less noise
     sim_measurements = ground_truth + np.random.randn(100, 3) * sim_noise_std
     
-    quality = sensor_noise_characteristics(
+    quality = calculate_sensor_noise_characteristics(
         sim_measurements,
         real_measurements,
         ground_truth=ground_truth
@@ -211,7 +211,7 @@ def example_5_multimodal_alignment():
     lidar_detections[:, :3] += np.random.randn(3, 3) * 0.2
     lidar_detections[:, 3:6] += np.random.randn(3, 3) * 0.15
     
-    quality = multimodal_sensor_alignment(camera_detections, lidar_detections)
+    quality = calculate_multimodal_sensor_alignment(camera_detections, lidar_detections)
     
     print("Multimodal Alignment Metrics:")
     print(f"  Detection Agreement Rate: {quality['detection_agreement_rate']:.2%}")
@@ -258,7 +258,7 @@ def example_6_temporal_consistency():
         
         detections_sequence.append(np.array(detections))
     
-    quality = temporal_consistency(detections_sequence, fps=fps)
+    quality = calculate_temporal_consistency(detections_sequence, fps=fps)
     
     print("Temporal Consistency Metrics:")
     print(f"  Detection Count (Mean ± Std): {quality['detection_count_mean']:.1f} ± {quality['detection_count_std']:.1f}")
@@ -313,7 +313,7 @@ def example_7_sim2real_gap():
             'ground_truth': ground_truth
         })
     
-    gap = perception_sim2real_gap(sim_results, real_results)
+    gap = calculate_perception_sim2real_gap(sim_results, real_results)
     
     print("Sim-to-Real Performance Gap:")
     print(f"\nSimulation Performance:")

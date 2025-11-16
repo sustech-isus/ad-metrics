@@ -8,27 +8,41 @@ simulation quality assessment, and HD map vector detection.
 """
 
 __version__ = "0.1.0"
-__author__ = "Your Name"
+__author__ = "AD-Metrics Contributors"
 
 # Detection metrics
 from admetrics.detection import (
     calculate_iou_3d,
     calculate_iou_bev,
     calculate_iou_batch,
+    calculate_giou_3d,
     calculate_ap,
     calculate_map,
+    calculate_ap_coco_style,
+    calculate_precision_recall_curve,
     calculate_nds,
+    calculate_nds_detailed,
+    calculate_tp_metrics,
     calculate_aos,
+    calculate_aos_per_difficulty,
+    calculate_orientation_similarity,
     calculate_confusion_metrics,
     calculate_tp_fp_fn,
+    calculate_confusion_matrix_multiclass,
+    calculate_specificity,
     calculate_center_distance,
     calculate_orientation_error,
+    calculate_size_error,
+    calculate_velocity_error,
+    calculate_average_distance_error,
+    calculate_translation_error_bins,
 )
 
 # Tracking metrics
 from admetrics.tracking import (
     calculate_mota,
     calculate_motp,
+    calculate_clearmot_metrics,
     calculate_multi_frame_mota,
     calculate_hota,
     calculate_id_f1,
@@ -62,68 +76,87 @@ from admetrics.localization import (
 
 # Occupancy metrics
 from admetrics.occupancy import (
-    occupancy_iou,
-    mean_iou,
-    occupancy_precision_recall,
-    scene_completion,
-    chamfer_distance,
-    surface_distance,
+    calculate_occupancy_iou,
+    calculate_mean_iou,
+    calculate_occupancy_precision_recall,
+    calculate_scene_completion,
+    calculate_chamfer_distance,
+    calculate_surface_distance,
 )
 
 # End-to-end planning metrics
 from admetrics.planning import (
-    l2_distance,
-    collision_rate,
-    progress_score,
-    route_completion,
+    calculate_l2_distance,
+    calculate_collision_rate,
+    calculate_progress_score,
+    calculate_route_completion,
     average_displacement_error_planning,
-    lateral_deviation,
-    heading_error,
-    velocity_error,
-    comfort_metrics,
-    driving_score,
-    planning_kl_divergence,
+    calculate_lateral_deviation,
+    calculate_heading_error,
+    calculate_velocity_error,
+    calculate_comfort_metrics,
+    calculate_driving_score,
+    calculate_planning_kl_divergence,
 )
 
 # Simulation quality metrics
 from admetrics.simulation import (
-    camera_image_quality,
-    lidar_point_cloud_quality,
-    radar_quality,
-    sensor_noise_characteristics,
-    multimodal_sensor_alignment,
-    temporal_consistency,
-    perception_sim2real_gap,
+    calculate_camera_image_quality,
+    calculate_lidar_point_cloud_quality,
+    calculate_radar_quality,
+    calculate_sensor_noise_characteristics,
+    calculate_multimodal_sensor_alignment,
+    calculate_temporal_consistency,
+    calculate_perception_sim2real_gap,
 )
 
 # Vector map detection metrics
 from admetrics.vectormap import (
-    chamfer_distance_polyline,
-    frechet_distance,
-    polyline_iou,
-    lane_detection_metrics,
-    topology_metrics,
-    endpoint_error,
-    direction_accuracy,
-    vectormap_ap,
+    calculate_chamfer_distance_polyline,
+    calculate_frechet_distance,
+    calculate_polyline_iou,
+    calculate_lane_detection_metrics,
+    calculate_topology_metrics,
+    calculate_endpoint_error,
+    calculate_direction_accuracy,
+    calculate_vectormap_ap,
 )
 
 __all__ = [
-    # Detection metrics
+    # Detection metrics - IoU
     "calculate_iou_3d",
     "calculate_iou_bev",
     "calculate_iou_batch",
+    "calculate_giou_3d",
+    # Detection metrics - AP
     "calculate_ap",
     "calculate_map",
+    "calculate_ap_coco_style",
+    "calculate_precision_recall_curve",
+    # Detection metrics - NuScenes
     "calculate_nds",
+    "calculate_nds_detailed",
+    "calculate_tp_metrics",
+    # Detection metrics - KITTI
     "calculate_aos",
+    "calculate_aos_per_difficulty",
+    "calculate_orientation_similarity",
+    # Detection metrics - Confusion matrix
     "calculate_confusion_metrics",
     "calculate_tp_fp_fn",
+    "calculate_confusion_matrix_multiclass",
+    "calculate_specificity",
+    # Detection metrics - Distance/Error
     "calculate_center_distance",
     "calculate_orientation_error",
+    "calculate_size_error",
+    "calculate_velocity_error",
+    "calculate_average_distance_error",
+    "calculate_translation_error_bins",
     # Tracking metrics
     "calculate_mota",
     "calculate_motp",
+    "calculate_clearmot_metrics",
     "calculate_multi_frame_mota",
     "calculate_hota",
     "calculate_id_f1",
@@ -148,39 +181,39 @@ __all__ = [
     "calculate_localization_metrics",
     "calculate_map_alignment_score",
     # Occupancy metrics
-    "occupancy_iou",
-    "mean_iou",
-    "occupancy_precision_recall",
-    "scene_completion",
-    "chamfer_distance",
-    "surface_distance",
+    "calculate_occupancy_iou",
+    "calculate_mean_iou",
+    "calculate_occupancy_precision_recall",
+    "calculate_scene_completion",
+    "calculate_chamfer_distance",
+    "calculate_surface_distance",
     # End-to-end planning metrics
-    "l2_distance",
-    "collision_rate",
-    "progress_score",
-    "route_completion",
+    "calculate_l2_distance",
+    "calculate_collision_rate",
+    "calculate_progress_score",
+    "calculate_route_completion",
     "average_displacement_error_planning",
-    "lateral_deviation",
-    "heading_error",
-    "velocity_error",
-    "comfort_metrics",
-    "driving_score",
-    "planning_kl_divergence",
+    "calculate_lateral_deviation",
+    "calculate_heading_error",
+    "calculate_velocity_error",
+    "calculate_comfort_metrics",
+    "calculate_driving_score",
+    "calculate_planning_kl_divergence",
     # Simulation quality metrics
-    "camera_image_quality",
-    "lidar_point_cloud_quality",
-    "radar_quality",
-    "sensor_noise_characteristics",
-    "multimodal_sensor_alignment",
-    "temporal_consistency",
-    "perception_sim2real_gap",
+    "calculate_camera_image_quality",
+    "calculate_lidar_point_cloud_quality",
+    "calculate_radar_quality",
+    "calculate_sensor_noise_characteristics",
+    "calculate_multimodal_sensor_alignment",
+    "calculate_temporal_consistency",
+    "calculate_perception_sim2real_gap",
     # Vector map detection metrics
-    "chamfer_distance_polyline",
-    "frechet_distance",
-    "polyline_iou",
-    "lane_detection_metrics",
-    "topology_metrics",
-    "endpoint_error",
-    "direction_accuracy",
-    "vectormap_ap",
+    "calculate_chamfer_distance_polyline",
+    "calculate_frechet_distance",
+    "calculate_polyline_iou",
+    "calculate_lane_detection_metrics",
+    "calculate_topology_metrics",
+    "calculate_endpoint_error",
+    "calculate_direction_accuracy",
+    "calculate_vectormap_ap",
 ]

@@ -26,17 +26,17 @@ A comprehensive reference of all metrics available in the `admetrics` library fo
 
 | Category | Count | Key Metrics | Python Module | Documentation |
 |----------|-------|-------------|---------------|---------------|
-| **Detection** | 25 | IoU (3D/BEV/GIoU), AP, mAP, NDS, AOS, Precision/Recall/F1, Center Distance, Orientation Error | `admetrics.detection.*` | [DETECTION_METRICS.md](docs/DETECTION_METRICS.md) |
-| **Tracking** | 14 | MOTA, MOTP, HOTA, DetA, AssA, IDF1, ID Switches, Fragmentations | `admetrics.tracking` | [TRACKING_METRICS.md](TRACKING_METRICS.md) |
-| **Trajectory Prediction** | 11 | ADE, FDE, minADE/minFDE, Brier-FDE, NLL, Miss Rate, Collision Rate | `admetrics.prediction` | [TRAJECTORY_PREDICTION.md](TRAJECTORY_PREDICTION.md) |
+| **Detection** | 24 | IoU (3D/BEV/GIoU), AP, mAP, NDS, AOS, Precision/Recall/F1, Center Distance, Orientation Error | `admetrics.detection.*` | [DETECTION_METRICS.md](docs/DETECTION_METRICS.md) |
+| **Tracking** | 6 | MOTA, MOTP, HOTA, CLEARMOT, IDF1, Multi-Frame MOTA | `admetrics.tracking` | [TRACKING_METRICS.md](TRACKING_METRICS.md) |
+| **Trajectory Prediction** | 10 | ADE, FDE, minADE/minFDE, Brier-FDE, NLL, Miss Rate, Collision Rate, Drivable Area Compliance | `admetrics.prediction` | [TRAJECTORY_PREDICTION.md](TRAJECTORY_PREDICTION.md) |
 | **Localization** | 8 | ATE, RTE, ARE, Lateral/Longitudinal Error, Convergence, Map Alignment | `admetrics.localization` | [LOCALIZATION_METRICS.md](LOCALIZATION_METRICS.md) |
-| **Occupancy** | 10 | IoU, mIoU, Precision/Recall/F1, Scene Completion, Chamfer Distance | `admetrics.occupancy` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
-| **Planning** | 12 | L2 Distance, ADE/FDE, Collision Rate, Progress, Route Completion, Lateral Deviation, Driving Score | `admetrics.planning` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
+| **Occupancy** | 6 | IoU, mIoU, Precision/Recall, Scene Completion, Chamfer Distance, Surface Distance | `admetrics.occupancy` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
+| **Planning** | 11 | L2 Distance, Collision Rate, Progress, Route Completion, Lateral Deviation, Heading Error, Velocity Error, Comfort, Driving Score, KL Divergence | `admetrics.planning` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 | **Vector Map** | 8 | Chamfer Distance, Fréchet Distance, Polyline IoU, Lane Detection, Topology, Endpoint Error, Direction Accuracy, AP | `admetrics.vectormap` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
-| **Simulation Quality** | 29 | Camera (PSNR, SSIM), LiDAR (Chamfer, Density), Radar (Velocity, RCS), Noise, Alignment, Temporal, Sim2Real Gap | `admetrics.simulation` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
-| **Utility** | 8+ | Hungarian/Greedy Matching, NMS (3D/BEV), Box Transforms, Visualization | `admetrics.utils.*` | [api_reference.md](docs/api_reference.md) |
+| **Simulation Quality** | 7 | Camera Quality, LiDAR Quality, Radar Quality, Sensor Noise, Multimodal Alignment, Temporal Consistency, Sim2Real Gap | `admetrics.simulation` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
+| **Utility** | 9 | Hungarian/Greedy Matching, NMS (3D/BEV), Box Transforms (Transform/Rotate/Translate), Format Conversion | `admetrics.utils.*` | [api_reference.md](docs/api_reference.md) |
 
-**Total: 125+ metrics** across all categories for comprehensive autonomous driving evaluation.
+**Total: 80 metrics** across all categories for comprehensive autonomous driving evaluation.
 
 
 ---
@@ -369,7 +369,7 @@ Metrics for evaluating 3D semantic occupancy prediction in voxel grids.
 | **Recall** | TP / (TP + FN) for voxel-level predictions | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 | **F1-Score** | Harmonic mean of precision and recall | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 
-**Functions:** `occupancy_iou()`, `mean_iou()`, `occupancy_precision_recall()`
+**Functions:** `calculate_occupancy_iou()`, `calculate_mean_iou()`, `calculate_occupancy_precision_recall()`
 
 **Range:** [0, 1] where 1 = perfect prediction
 
@@ -385,7 +385,7 @@ Metrics for evaluating 3D semantic occupancy prediction in voxel grids.
 | **SSC-mIoU** | Semantic Scene Completion mIoU - Mean IoU over occupied semantic classes | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 | **Completion Ratio** | Ratio of predicted occupied voxels to ground truth occupied voxels | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 
-**Functions:** `scene_completion()`
+**Functions:** `calculate_scene_completion()`
 
 **Range:** [0, 1] for IoU metrics; [0, ∞) for Completion Ratio (1.0 = perfect)
 
@@ -400,7 +400,7 @@ Metrics for evaluating 3D semantic occupancy prediction in voxel grids.
 | **Chamfer Distance** | Average distance between predicted and GT point clouds (bidirectional) | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 | **Surface Distance** | Distance between predicted and GT surface voxels | Occupancy | `admetrics/occupancy.py` | [OCCUPANCY_METRICS.md](OCCUPANCY_METRICS.md) |
 
-**Functions:** `chamfer_distance()`, `surface_distance()`
+**Functions:** `calculate_chamfer_distance()`, `calculate_surface_distance()`
 
 **Range:** [0, ∞) meters/voxels, lower is better
 
@@ -420,7 +420,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 | **ADE (Planning)** | Average Displacement Error across trajectory timesteps | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 | **FDE (Planning)** | Final Displacement Error at end of trajectory | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `l2_distance()`, `average_displacement_error_planning()`
+**Functions:** `calculate_l2_distance()`, `average_displacement_error_planning()`
 
 **Range:** [0, ∞) meters where 0 = perfect trajectory match
 
@@ -434,7 +434,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 |--------|---------|----------|-------------|---------------|
 | **Collision Rate** | Percentage of timesteps with collision (static/dynamic obstacles) | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `collision_rate()`
+**Functions:** `calculate_collision_rate()`
 
 **Range:** [0, 1] where 0 = no collisions (ideal)
 
@@ -449,7 +449,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 | **Progress Score** | Distance traveled along reference path and completion ratio | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 | **Route Completion** | Waypoint-based navigation success rate | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `progress_score()`, `route_completion()`
+**Functions:** `calculate_progress_score()`, `calculate_route_completion()`
 
 **Range:** [0, 1] for completion rates; [0, ∞) meters for progress
 
@@ -465,7 +465,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 | **Heading Error** | Orientation/yaw angle difference from expert | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 | **Velocity Error** | Speed control accuracy (mean, RMSE, max) | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `lateral_deviation()`, `heading_error()`, `velocity_error()`
+**Functions:** `calculate_lateral_deviation()`, `calculate_heading_error()`, `calculate_velocity_error()`
 
 **Range:** [0, ∞) meters/radians where 0 = perfect tracking
 
@@ -479,7 +479,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 |--------|---------|----------|-------------|---------------|
 | **Comfort Metrics** | Acceleration, jerk, comfort violations, comfort rate | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `comfort_metrics()`
+**Functions:** `calculate_comfort_metrics()`
 
 **Range:** [0, ∞) for acceleration/jerk; [0, 1] for comfort rate
 
@@ -493,7 +493,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 |--------|---------|----------|-------------|---------------|
 | **Driving Score** | Comprehensive score combining planning, safety, progress, comfort | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `driving_score()`
+**Functions:** `calculate_driving_score()`
 
 **Range:** [0, 100] where 100 = perfect driving
 
@@ -507,7 +507,7 @@ Metrics for evaluating end-to-end autonomous driving models that directly output
 |--------|---------|----------|-------------|---------------|
 | **Planning KL Divergence** | KL divergence between learned and expert action distributions | Planning | `admetrics/planning.py` | [END_TO_END_METRICS.md](END_TO_END_METRICS.md) |
 
-**Functions:** `planning_kl_divergence()`
+**Functions:** `calculate_planning_kl_divergence()`
 
 **Range:** [0, ∞) where 0 = perfect match
 
@@ -527,7 +527,7 @@ Metrics for evaluating HD map vector detection, reconstruction, and topology qua
 | **Fréchet Distance** | Curve similarity metric considering point ordering and continuity | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 | **Polyline IoU** | Area-based overlap using buffered lane widths | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 
-**Functions:** `chamfer_distance_polyline()`, `frechet_distance()`, `polyline_iou()`
+**Functions:** `calculate_chamfer_distance_polyline()`, `calculate_frechet_distance()`, `calculate_polyline_iou()`
 
 **Range:** [0, ∞) meters for distances (lower better); [0, 1] for IoU (higher better)
 
@@ -542,7 +542,7 @@ Metrics for evaluating HD map vector detection, reconstruction, and topology qua
 | **Lane Detection Metrics** | Precision, Recall, F1 for lane detection with distance threshold matching | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 | **Vector Map AP** | Average Precision at multiple distance thresholds (0.5m, 1.0m, 2.0m) | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 
-**Functions:** `lane_detection_metrics()`, `vector_map_ap()`
+**Functions:** `calculate_lane_detection_metrics()`, `vector_map_ap()`
 
 **Range:** [0, 1] where 1 = perfect detection
 
@@ -556,7 +556,7 @@ Metrics for evaluating HD map vector detection, reconstruction, and topology qua
 |--------|---------|----------|-------------|---------------|
 | **Topology Metrics** | Successor and neighbor connectivity accuracy for lane graph structure | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 
-**Functions:** `topology_metrics()`
+**Functions:** `calculate_topology_metrics()`
 
 **Range:** [0, 1] for accuracy (higher better)
 
@@ -571,7 +571,7 @@ Metrics for evaluating HD map vector detection, reconstruction, and topology qua
 | **Endpoint Error** | Distance error for lane merge/split start and end points | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 | **Direction Accuracy** | Tangent vector alignment at lane points (angle error) | Vector Map | `admetrics/vectormap.py` | [VECTORMAP_METRICS.md](VECTORMAP_METRICS.md) |
 
-**Functions:** `endpoint_error()`, `direction_accuracy()`
+**Functions:** `calculate_endpoint_error()`, `calculate_direction_accuracy()`
 
 **Range:** [0, ∞) meters for endpoint; [0, 180°] for direction (lower better)
 
@@ -592,7 +592,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **Color Distribution** | KL divergence of RGB histograms | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Brightness/Contrast** | Mean brightness and contrast ratio comparison | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `camera_image_quality()`
+**Functions:** `calculate_camera_image_quality()`
 
 **Range:** PSNR [0, ∞) dB (higher better); Others [0, ∞) (lower better for KL)
 
@@ -610,7 +610,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **Vertical Angle Distribution** | Beam pattern matching (elevation angles) | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Intensity Correlation** | Correlation of intensity values | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `lidar_point_cloud_quality()`
+**Functions:** `calculate_lidar_point_cloud_quality()`
 
 **Range:** [0, ∞) meters for Chamfer (lower better); [0, 1] for correlation (higher better)
 
@@ -626,7 +626,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **Velocity Distribution** | KL divergence of radial velocity histograms | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **RCS Distribution** | Radar Cross-Section distribution similarity | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `radar_quality()`
+**Functions:** `calculate_radar_quality()`
 
 **Range:** [0, ∞) for KL divergence (lower better)
 
@@ -643,7 +643,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **SNR** | Signal-to-Noise Ratio comparison | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Bias** | Mean error from ground truth | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `sensor_noise_characteristics()`
+**Functions:** `calculate_sensor_noise_characteristics()`
 
 **Range:** Ratio ~1.0 ideal; p-value > 0.05 for KS test
 
@@ -660,7 +660,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **Size Consistency** | Bounding box size difference | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Orientation Error** | Heading angle consistency | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `multimodal_sensor_alignment()`
+**Functions:** `calculate_multimodal_sensor_alignment()`
 
 **Range:** [0, 1] for agreement (higher better); [0, ∞) for errors (lower better)
 
@@ -676,7 +676,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **Frame-to-Frame Consistency** | Fraction of detections persisting between frames | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Flicker Rate** | Rate of appearance/disappearance events | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `temporal_consistency()`
+**Functions:** `calculate_temporal_consistency()`
 
 **Range:** [0, 1] for consistency (higher better); [0, 1] for flicker rate (lower better)
 
@@ -693,7 +693,7 @@ Metrics for evaluating the fidelity and realism of simulated sensor data in auto
 | **F1 Gap** | Difference in F1-score | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 | **Performance Drop** | Percentage degradation from sim to real | Simulation | `admetrics/simulation.py` | [SIMULATION_QUALITY.md](SIMULATION_QUALITY.md) |
 
-**Functions:** `perception_sim2real_gap()`
+**Functions:** `calculate_perception_sim2real_gap()`
 
 **Range:** [-1, 1] for gaps; [0, 100] for performance drop %
 

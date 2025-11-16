@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from scipy.spatial.distance import directed_hausdorff, cdist
 
 
-def chamfer_distance_polyline(
+def calculate_chamfer_distance_polyline(
     pred_polyline: np.ndarray,
     gt_polyline: np.ndarray,
     max_distance: Optional[float] = None
@@ -82,7 +82,7 @@ def chamfer_distance_polyline(
     }
 
 
-def frechet_distance(
+def calculate_frechet_distance(
     pred_polyline: np.ndarray,
     gt_polyline: np.ndarray
 ) -> float:
@@ -142,7 +142,7 @@ def frechet_distance(
     return float(_compute_frechet(n-1, m-1))
 
 
-def polyline_iou(
+def calculate_polyline_iou(
     pred_polyline: np.ndarray,
     gt_polyline: np.ndarray,
     width: float = 1.0,
@@ -228,7 +228,7 @@ def polyline_iou(
     return float(np.clip(iou, 0, 1))
 
 
-def lane_detection_metrics(
+def calculate_lane_detection_metrics(
     pred_lanes: List[np.ndarray],
     gt_lanes: List[np.ndarray],
     distance_threshold: float = 1.5,
@@ -298,7 +298,7 @@ def lane_detection_metrics(
     
     for i, pred_lane in enumerate(pred_lanes):
         for j, gt_lane in enumerate(gt_lanes):
-            result = chamfer_distance_polyline(pred_lane, gt_lane)
+            result = calculate_chamfer_distance_polyline(pred_lane, gt_lane)
             chamfer_matrix[i, j] = result['chamfer_distance']
     
     # Greedy matching: match pred to GT based on minimum Chamfer distance
@@ -343,7 +343,7 @@ def lane_detection_metrics(
     }
 
 
-def topology_metrics(
+def calculate_topology_metrics(
     pred_topology: Dict[str, List[int]],
     gt_topology: Dict[str, List[int]],
     lane_matches: Dict[int, int]
@@ -412,7 +412,7 @@ def topology_metrics(
     }
 
 
-def endpoint_error(
+def calculate_endpoint_error(
     pred_polyline: np.ndarray,
     gt_polyline: np.ndarray
 ) -> Dict[str, float]:
@@ -454,7 +454,7 @@ def endpoint_error(
     }
 
 
-def direction_accuracy(
+def calculate_direction_accuracy(
     pred_polyline: np.ndarray,
     gt_polyline: np.ndarray,
     num_samples: int = 10
@@ -540,7 +540,7 @@ def direction_accuracy(
     }
 
 
-def vectormap_ap(
+def calculate_vectormap_ap(
     pred_lanes: List[Dict],
     gt_lanes: List[Dict],
     distance_thresholds: List[float] = [0.5, 1.0, 1.5],
@@ -603,7 +603,7 @@ def vectormap_ap(
                     continue
                 
                 gt_polyline = gt_lane['polyline']
-                result = chamfer_distance_polyline(pred_polyline, gt_polyline)
+                result = calculate_chamfer_distance_polyline(pred_polyline, gt_polyline)
                 chamfer = result['chamfer_distance']
                 
                 if chamfer < best_chamfer:

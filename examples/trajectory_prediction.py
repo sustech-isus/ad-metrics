@@ -11,7 +11,7 @@ Demonstrates how to evaluate trajectory prediction models using various metrics:
 """
 
 import numpy as np
-from admetrics.trajectory import (
+from admetrics.prediction import (
     calculate_ade,
     calculate_fde,
     calculate_miss_rate,

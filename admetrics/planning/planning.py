@@ -12,7 +12,7 @@ from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 
 
-def l2_distance(
+def calculate_l2_distance(
     predicted_trajectory: np.ndarray,
     expert_trajectory: np.ndarray,
     weights: Optional[np.ndarray] = None
@@ -53,7 +53,7 @@ def l2_distance(
     return float(np.mean(distances))
 
 
-def collision_rate(
+def calculate_collision_rate(
     trajectory: np.ndarray,
     obstacles: List[np.ndarray],
     vehicle_size: Tuple[float, float] = (4.5, 2.0),
@@ -129,7 +129,7 @@ def collision_rate(
     }
 
 
-def progress_score(
+def calculate_progress_score(
     trajectory: np.ndarray,
     reference_path: np.ndarray,
     goal_position: Optional[np.ndarray] = None
@@ -200,7 +200,7 @@ def progress_score(
     }
 
 
-def route_completion(
+def calculate_route_completion(
     trajectory: np.ndarray,
     waypoints: np.ndarray,
     completion_radius: float = 2.0
@@ -305,7 +305,7 @@ def average_displacement_error_planning(
     }
 
 
-def lateral_deviation(
+def calculate_lateral_deviation(
     trajectory: np.ndarray,
     reference_path: np.ndarray
 ) -> Dict[str, float]:
@@ -355,7 +355,7 @@ def lateral_deviation(
     }
 
 
-def heading_error(
+def calculate_heading_error(
     predicted_headings: np.ndarray,
     expert_headings: np.ndarray
 ) -> Dict[str, float]:
@@ -398,7 +398,7 @@ def heading_error(
     }
 
 
-def velocity_error(
+def calculate_velocity_error(
     predicted_velocities: np.ndarray,
     expert_velocities: np.ndarray
 ) -> Dict[str, float]:
@@ -436,7 +436,7 @@ def velocity_error(
     }
 
 
-def comfort_metrics(
+def calculate_comfort_metrics(
     trajectory: np.ndarray,
     timestamps: np.ndarray,
     max_acceleration: float = 3.0,
@@ -517,7 +517,7 @@ def comfort_metrics(
     }
 
 
-def driving_score(
+def calculate_driving_score(
     predicted_trajectory: np.ndarray,
     expert_trajectory: np.ndarray,
     obstacles: List[np.ndarray],
@@ -566,20 +566,20 @@ def driving_score(
         weights = default_weights
     
     # Planning accuracy (lower L2 distance is better)
-    l2_dist = l2_distance(predicted_trajectory, expert_trajectory)
+    l2_dist = calculate_l2_distance(predicted_trajectory, expert_trajectory)
     # Convert to score (0-100), assuming 5m is very poor, 0m is perfect
     planning_accuracy = max(0, 100 * (1 - min(l2_dist / 5.0, 1.0)))
     
     # Safety (no collisions is best)
-    collision_result = collision_rate(predicted_trajectory, obstacles)
+    collision_result = calculate_collision_rate(predicted_trajectory, obstacles)
     safety_score_val = 100 * (1 - collision_result['collision_rate'])
     
     # Progress
-    progress_result = progress_score(predicted_trajectory, reference_path)
+    progress_result = calculate_progress_score(predicted_trajectory, reference_path)
     progress_score_val = 100 * progress_result['progress_ratio']
     
     # Comfort
-    comfort_result = comfort_metrics(predicted_trajectory, timestamps)
+    comfort_result = calculate_comfort_metrics(predicted_trajectory, timestamps)
     comfort_score_val = 100 * comfort_result['comfort_rate']
     
     # Weighted combination
@@ -599,7 +599,7 @@ def driving_score(
     }
 
 
-def planning_kl_divergence(
+def calculate_planning_kl_divergence(
     predicted_distribution: np.ndarray,
     expert_distribution: np.ndarray,
     bins: int = 50

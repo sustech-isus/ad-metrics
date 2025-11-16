@@ -13,14 +13,14 @@ Benchmarks: nuScenes Map, Argoverse 2, OpenLane-V2
 
 import numpy as np
 from admetrics.vectormap import (
-    chamfer_distance_polyline,
-    frechet_distance,
-    polyline_iou,
-    lane_detection_metrics,
-    topology_metrics,
-    endpoint_error,
-    direction_accuracy,
-    vectormap_ap
+    calculate_chamfer_distance_polyline,
+    calculate_frechet_distance,
+    calculate_polyline_iou,
+    calculate_lane_detection_metrics,
+    calculate_topology_metrics,
+    calculate_endpoint_error,
+    calculate_direction_accuracy,
+    calculate_vectormap_ap
 )
 
 
@@ -47,7 +47,7 @@ def example_1_chamfer_distance():
     ])
     
     # Calculate Chamfer distance
-    result = chamfer_distance_polyline(pred_lane, gt_lane, max_distance=0.5)
+    result = calculate_chamfer_distance_polyline(pred_lane, gt_lane, max_distance=0.5)
     
     print(f"\nChamfer Distance: {result['chamfer_distance']:.3f}m")
     print(f"  Pred -> GT: {result['chamfer_pred_to_gt']:.3f}m")
@@ -79,7 +79,7 @@ def example_2_frechet_distance():
     ])
     
     # Calculate Fréchet distance
-    dist = frechet_distance(pred_curve, gt_curve)
+    dist = calculate_frechet_distance(pred_curve, gt_curve)
     
     print(f"\nFréchet Distance: {dist:.3f}m")
     print("\nInterpretation:")
@@ -110,8 +110,8 @@ def example_3_polyline_iou():
     ])
     
     # Calculate IoU with lane width tolerance
-    iou_narrow = polyline_iou(pred_boundary, gt_boundary, width=0.5, num_samples=50)
-    iou_wide = polyline_iou(pred_boundary, gt_boundary, width=1.5, num_samples=50)
+    iou_narrow = calculate_polyline_iou(pred_boundary, gt_boundary, width=0.5, num_samples=50)
+    iou_wide = calculate_polyline_iou(pred_boundary, gt_boundary, width=1.5, num_samples=50)
     
     print(f"\nPolyline IoU:")
     print(f"  Width=0.5m: {iou_narrow:.1%}")
@@ -146,7 +146,7 @@ def example_4_lane_detection():
     ]
     
     # Evaluate detection
-    metrics = lane_detection_metrics(pred_lanes, gt_lanes, distance_threshold=1.0)
+    metrics = calculate_lane_detection_metrics(pred_lanes, gt_lanes, distance_threshold=1.0)
     
     print(f"\nLane Detection Performance:")
     print(f"  Precision: {metrics['precision']:.1%} ({metrics['tp']}/{metrics['tp'] + metrics['fp']} correct)")
@@ -190,7 +190,7 @@ def example_5_topology():
     lane_matches = {0: 0, 1: 1, 2: 2, 3: 3}
     
     # Evaluate topology
-    metrics = topology_metrics(pred_topology, gt_topology, lane_matches)
+    metrics = calculate_topology_metrics(pred_topology, gt_topology, lane_matches)
     
     print(f"\nTopology Performance:")
     print(f"  Precision: {metrics['topology_precision']:.1%}")
@@ -232,7 +232,7 @@ def example_6_endpoint_and_direction():
     ])
     
     # Endpoint accuracy
-    ep_errors = endpoint_error(pred_merge, gt_merge)
+    ep_errors = calculate_endpoint_error(pred_merge, gt_merge)
     
     print(f"\nEndpoint Errors:")
     print(f"  Start Point Error: {ep_errors['start_error']:.3f}m")
@@ -240,7 +240,7 @@ def example_6_endpoint_and_direction():
     print(f"  Mean Endpoint Error: {ep_errors['mean_endpoint_error']:.3f}m")
     
     # Direction accuracy
-    dir_acc = direction_accuracy(pred_merge, gt_merge, num_samples=10)
+    dir_acc = calculate_direction_accuracy(pred_merge, gt_merge, num_samples=10)
     
     print(f"\nDirection Accuracy:")
     print(f"  Mean Direction Error: {dir_acc['mean_direction_error_deg']:.2f}°")
@@ -278,7 +278,7 @@ def example_7_average_precision():
     ]
     
     # Calculate AP at multiple thresholds
-    ap_results = vectormap_ap(
+    ap_results = calculate_vectormap_ap(
         pred_lanes,
         gt_lanes,
         distance_thresholds=[0.5, 1.0, 1.5]
@@ -324,7 +324,7 @@ def example_8_complete_evaluation():
     
     print("\n1. DETECTION QUALITY")
     print("-" * 70)
-    det_metrics = lane_detection_metrics(pred_lanes, gt_lanes, distance_threshold=1.0)
+    det_metrics = calculate_lane_detection_metrics(pred_lanes, gt_lanes, distance_threshold=1.0)
     print(f"   Precision: {det_metrics['precision']:.1%}")
     print(f"   Recall: {det_metrics['recall']:.1%}")
     print(f"   F1 Score: {det_metrics['f1_score']:.3f}")
@@ -333,7 +333,7 @@ def example_8_complete_evaluation():
     print("-" * 70)
     chamfer_distances = []
     for i, (pred, gt) in enumerate(zip(pred_lanes[:4], gt_lanes[:4])):
-        result = chamfer_distance_polyline(pred, gt)
+        result = calculate_chamfer_distance_polyline(pred, gt)
         chamfer_distances.append(result['chamfer_distance'])
         print(f"   Lane {i+1} Chamfer: {result['chamfer_distance']:.3f}m")
     print(f"   Mean Chamfer: {np.mean(chamfer_distances):.3f}m")
@@ -341,14 +341,14 @@ def example_8_complete_evaluation():
     print("\n3. ENDPOINT ACCURACY")
     print("-" * 70)
     for i, (pred, gt) in enumerate(zip(pred_lanes[:4], gt_lanes[:4])):
-        ep_error = endpoint_error(pred, gt)
+        ep_error = calculate_endpoint_error(pred, gt)
         print(f"   Lane {i+1}: Start={ep_error['start_error']:.2f}m, End={ep_error['end_error']:.2f}m")
     
     print("\n4. DIRECTION ACCURACY")
     print("-" * 70)
     direction_accs = []
     for i, (pred, gt) in enumerate(zip(pred_lanes[:4], gt_lanes[:4])):
-        dir_acc = direction_accuracy(pred, gt)
+        dir_acc = calculate_direction_accuracy(pred, gt)
         direction_accs.append(dir_acc['direction_accuracy'])
         print(f"   Lane {i+1}: {dir_acc['mean_direction_error_deg']:.1f}° error, "
               f"{dir_acc['direction_accuracy']:.0%} accurate")
@@ -358,7 +358,7 @@ def example_8_complete_evaluation():
     # Create predictions with scores for AP
     pred_with_scores = [{'polyline': p, 'score': 0.9 - i*0.1} for i, p in enumerate(pred_lanes)]
     gt_with_format = [{'polyline': g} for g in gt_lanes]
-    ap_results = vectormap_ap(pred_with_scores, gt_with_format, distance_thresholds=[1.0])
+    ap_results = calculate_vectormap_ap(pred_with_scores, gt_with_format, distance_thresholds=[1.0])
     
     print(f"   Detection F1: {det_metrics['f1_score']:.3f}")
     print(f"   Mean Geometric Error: {np.mean(chamfer_distances):.3f}m")

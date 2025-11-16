@@ -150,38 +150,38 @@ print(f"Heading Error: {metrics['are_mean']:.2f}°")
 ### Occupancy Prediction
 
 ```python
-from admetrics.occupancy import mean_iou, scene_completion
+from admetrics.occupancy import calculate_mean_iou, calculate_scene_completion
 
 # Voxel-based metrics
-miou = mean_iou(pred_occupancy, gt_occupancy, num_classes=18)
+miou = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=18)
 print(f"mIoU: {miou:.4f}")
 
 # Scene completion
-sc_result = scene_completion(pred_occupancy, gt_occupancy)
+sc_result = calculate_scene_completion(pred_occupancy, gt_occupancy)
 print(f"SC-IoU: {sc_result['sc_iou']:.4f}")
 ```
 
 ### Vector Map Detection
 
 ```python
-from admetrics.vectormap import chamfer_distance_polyline, topology_metrics
+from admetrics.vectormap import calculate_chamfer_distance_polyline, calculate_topology_metrics
 
 # Geometric accuracy
-cd = chamfer_distance_polyline(pred_polylines, gt_polylines)
-print(f"Chamfer Distance: {cd['chamfer_distance']:.3f}m")
+cd = calculate_chamfer_distance_polyline(pred_polylines, gt_polylines)
+print(f"Chamfer Distance: {cd['calculate_chamfer_distance']:.3f}m")
 
 # Topology evaluation
-topo = topology_metrics(pred_graph, gt_graph)
+topo = calculate_topology_metrics(pred_graph, gt_graph)
 print(f"Successor Accuracy: {topo['successor_accuracy']:.4f}")
 ```
 
 ### Planning Evaluation
 
 ```python
-from admetrics.planning import driving_score, collision_rate
+from admetrics.planning import calculate_driving_score, calculate_collision_rate
 
 # nuPlan-style comprehensive evaluation
-score = driving_score(
+score = calculate_driving_score(
     predicted_trajectory,
     expert_trajectory,
     obstacles,
@@ -190,7 +190,7 @@ score = driving_score(
 print(f"Driving Score: {score:.2f}/100")
 
 # Safety metrics
-collision = collision_rate(predicted_trajectory, obstacles)
+collision = calculate_collision_rate(predicted_trajectory, obstacles)
 print(f"Collision Rate: {collision:.2%}")
 ```
 

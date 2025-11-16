@@ -61,10 +61,10 @@ IoU = Intersection / Union
 from admetrics.occupancy import occupancy_iou
 
 # Calculate IoU for a specific class
-iou = occupancy_iou(pred_occupancy, gt_occupancy, class_id=1)
+iou = calculate_occupancy_iou(pred_occupancy, gt_occupancy, class_id=1)
 
 # Calculate binary IoU (occupied vs free)
-binary_iou = occupancy_iou(pred_occupancy, gt_occupancy, class_id=None)
+binary_iou = calculate_occupancy_iou(pred_occupancy, gt_occupancy, class_id=None)
 ```
 
 **Parameters:**
@@ -92,7 +92,7 @@ mIoU = (1/C) * Σ(IoU_c) for c in valid_classes
 ```python
 from admetrics.occupancy import mean_iou
 
-result = mean_iou(pred_occupancy, gt_occupancy, num_classes=5)
+result = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=5)
 print(f"mIoU: {result['mIoU']}")
 print(f"Per-class IoU: {result['class_iou']}")
 ```
@@ -118,7 +118,7 @@ F1 = 2 * Precision * Recall / (Precision + Recall)
 ```python
 from admetrics.occupancy import occupancy_precision_recall
 
-metrics = occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=1)
+metrics = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=1)
 print(f"Precision: {metrics['precision']:.4f}")
 print(f"Recall: {metrics['recall']:.4f}")
 print(f"F1: {metrics['f1']:.4f}")
@@ -180,7 +180,7 @@ Completion_Ratio = |predicted_occupied| / |gt_occupied|
 ```python
 from admetrics.occupancy import scene_completion
 
-sc = scene_completion(pred_occupancy, gt_occupancy, free_class=0)
+sc = calculate_scene_completion(pred_occupancy, gt_occupancy, free_class=0)
 print(f"SC IoU: {sc['SC_IoU']:.4f}")
 print(f"SSC mIoU: {sc['SSC_mIoU']:.4f}")
 print(f"Completion Ratio: {sc['completion_ratio']:.4f}")
@@ -218,7 +218,7 @@ from admetrics.occupancy import chamfer_distance
 pred_points = np.argwhere(pred_occupancy > 0).astype(float)
 gt_points = np.argwhere(gt_occupancy > 0).astype(float)
 
-cd = chamfer_distance(pred_points, gt_points, bidirectional=True)
+cd = calculate_chamfer_distance(pred_points, gt_points, bidirectional=True)
 print(f"Chamfer Distance: {cd['chamfer_distance']:.4f} voxels")
 ```
 
@@ -247,7 +247,7 @@ Measures distances between predicted and ground truth surfaces.
 ```python
 from admetrics.occupancy import surface_distance
 
-sd = surface_distance(
+sd = calculate_surface_distance(
     pred_occupancy, 
     gt_occupancy, 
     voxel_size=0.2,  # meters
@@ -345,23 +345,23 @@ pred_occupancy = load_prediction()  # Shape: (X, Y, Z)
 gt_occupancy = load_ground_truth()  # Shape: (X, Y, Z)
 
 # 1. Semantic occupancy evaluation
-miou_result = mean_iou(pred_occupancy, gt_occupancy, num_classes=16)
+miou_result = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=16)
 print(f"mIoU: {miou_result['mIoU']:.4f}")
 
 # 2. Scene completion
-sc = scene_completion(pred_occupancy, gt_occupancy, free_class=0)
+sc = calculate_scene_completion(pred_occupancy, gt_occupancy, free_class=0)
 print(f"SC-IoU: {sc['SC_IoU']:.4f}")
 print(f"SSC-mIoU: {sc['SSC_mIoU']:.4f}")
 
 # 3. Per-class analysis (e.g., vehicles)
-vehicle_metrics = occupancy_precision_recall(
+vehicle_metrics = calculate_occupancy_precision_recall(
     pred_occupancy, gt_occupancy, class_id=1
 )
 print(f"Vehicle Precision: {vehicle_metrics['precision']:.4f}")
 print(f"Vehicle Recall: {vehicle_metrics['recall']:.4f}")
 
 # 4. Geometric quality
-sd = surface_distance(pred_occupancy, gt_occupancy, voxel_size=0.5)
+sd = calculate_surface_distance(pred_occupancy, gt_occupancy, voxel_size=0.5)
 print(f"Mean surface distance: {sd['mean_surface_distance']:.4f} m")
 ```
 

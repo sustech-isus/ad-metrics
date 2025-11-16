@@ -8,17 +8,17 @@ and overall driving performance.
 
 import numpy as np
 from admetrics.planning import (
-    l2_distance,
-    collision_rate,
-    progress_score,
-    route_completion,
+    calculate_l2_distance,
+    calculate_collision_rate,
+    calculate_progress_score,
+    calculate_route_completion,
     average_displacement_error_planning,
-    lateral_deviation,
-    heading_error,
-    velocity_error,
-    comfort_metrics,
-    driving_score,
-    planning_kl_divergence,
+    calculate_lateral_deviation,
+    calculate_heading_error,
+    calculate_velocity_error,
+    calculate_comfort_metrics,
+    calculate_driving_score,
+    calculate_planning_kl_divergence,
 )
 
 
@@ -39,11 +39,11 @@ def example_1_l2_distance():
     predicted_traj = expert_traj + np.random.normal(0, 0.1, expert_traj.shape)  # Slight noise
     
     # Uniform weights
-    dist_uniform = l2_distance(predicted_traj, expert_traj)
+    dist_uniform = calculate_l2_distance(predicted_traj, expert_traj)
     
     # Emphasize long-term planning (later timesteps weighted more)
     weights = np.linspace(1.0, 2.0, 30)
-    dist_weighted = l2_distance(predicted_traj, expert_traj, weights=weights)
+    dist_weighted = calculate_l2_distance(predicted_traj, expert_traj, weights=weights)
     
     print(f"Trajectory length: {len(expert_traj)} waypoints")
     print(f"L2 distance (uniform): {dist_uniform:.4f} m")
@@ -66,7 +66,7 @@ def example_2_collision_safety():
     
     obstacles = [static_obstacle, dynamic_obstacle]
     
-    result = collision_rate(
+    result = calculate_collision_rate(
         ego_traj, 
         obstacles,
         vehicle_size=(4.5, 2.0),  # Length x Width in meters
@@ -92,7 +92,7 @@ def example_3_progress_and_completion():
     executed_traj = np.array([[0, 0], [5, 0.5], [10, 0.3], [15, 5.2], [20, 10.1]])
     
     # Progress metrics
-    progress_result = progress_score(executed_traj, reference_path)
+    progress_result = calculate_progress_score(executed_traj, reference_path)
     
     print("Progress Metrics:")
     print(f"  Distance traveled: {progress_result['progress']:.2f} m")
@@ -102,7 +102,7 @@ def example_3_progress_and_completion():
     
     # Route completion with waypoints
     waypoints = np.array([[5, 0], [10, 0], [15, 5], [20, 10]])
-    route_result = route_completion(executed_traj, waypoints, completion_radius=1.0)
+    route_result = calculate_route_completion(executed_traj, waypoints, completion_radius=1.0)
     
     print(f"\nRoute Completion Metrics:")
     print(f"  Waypoints reached: {route_result['num_waypoints_reached']}/{route_result['total_waypoints']}")
@@ -121,7 +121,7 @@ def example_4_path_following_accuracy():
     np.random.seed(42)
     actual_traj = np.array([[i, 0.3 * np.sin(i * 0.2) + np.random.normal(0, 0.1)] for i in range(40)])
     
-    lateral_result = lateral_deviation(actual_traj, centerline)
+    lateral_result = calculate_lateral_deviation(actual_traj, centerline)
     
     print("Lateral Deviation Metrics:")
     print(f"  Mean lateral error: {lateral_result['mean_lateral_error']:.3f} m")
@@ -134,7 +134,7 @@ def example_4_path_following_accuracy():
     expert_headings = np.linspace(0, np.pi/4, 30)  # Gradual turn
     predicted_headings = expert_headings + np.random.normal(0, 0.05, 30)  # Small errors
     
-    heading_result = heading_error(predicted_headings, expert_headings)
+    heading_result = calculate_heading_error(predicted_headings, expert_headings)
     
     print(f"\nHeading Error Metrics:")
     print(f"  Mean heading error: {heading_result['mean_heading_error']:.4f} rad ({heading_result['mean_heading_error_deg']:.2f}°)")
@@ -156,7 +156,7 @@ def example_5_velocity_control():
     np.random.seed(42)
     predicted_vel = expert_vel + np.random.normal(0, 0.5, len(expert_vel))
     
-    vel_result = velocity_error(predicted_vel, expert_vel)
+    vel_result = calculate_velocity_error(predicted_vel, expert_vel)
     
     print("Velocity Control Metrics:")
     print(f"  Mean velocity error: {vel_result['mean_velocity_error']:.3f} m/s")
@@ -173,7 +173,7 @@ def example_6_comfort_evaluation():
     smooth_traj = np.array([[i**1.5 * 0.5, 0] for i in range(20)])
     smooth_t = np.linspace(0, 5, 20)
     
-    smooth_comfort = comfort_metrics(smooth_traj, smooth_t, max_acceleration=2.0, max_jerk=2.0)
+    smooth_comfort = calculate_comfort_metrics(smooth_traj, smooth_t, max_acceleration=2.0, max_jerk=2.0)
     
     print("Smooth Trajectory:")
     print(f"  Mean acceleration: {smooth_comfort['mean_acceleration']:.3f} m/s²")
@@ -187,7 +187,7 @@ def example_6_comfort_evaluation():
     aggressive_traj = np.array([[0, 0], [2, 0], [3, 0], [3.5, 0], [3.6, 0], [3.6, 0]])
     aggressive_t = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     
-    aggressive_comfort = comfort_metrics(aggressive_traj, aggressive_t, max_acceleration=2.0, max_jerk=2.0)
+    aggressive_comfort = calculate_comfort_metrics(aggressive_traj, aggressive_t, max_acceleration=2.0, max_jerk=2.0)
     
     print(f"\nAggressive Trajectory (with hard braking):")
     print(f"  Mean acceleration: {aggressive_comfort['mean_acceleration']:.3f} m/s²")
@@ -225,7 +225,7 @@ def example_7_comprehensive_driving_score():
     timestamps = np.linspace(0, 3, 10)
     
     # Calculate comprehensive driving score
-    result = driving_score(
+    result = calculate_driving_score(
         predicted_traj,
         expert_traj,
         obstacles,
@@ -249,7 +249,7 @@ def example_7_comprehensive_driving_score():
         'comfort': 0.1
     }
     
-    result_safety_focused = driving_score(
+    result_safety_focused = calculate_driving_score(
         predicted_traj,
         expert_traj,
         obstacles,
@@ -275,8 +275,8 @@ def example_8_imitation_learning_kl():
     # Learned policy distribution (poor match)
     learned_actions_poor = np.array([0.3, 0.1, 0.1, 0.3, 0.1, 0.1])
     
-    kl_good = planning_kl_divergence(learned_actions_good, expert_actions)
-    kl_poor = planning_kl_divergence(learned_actions_poor, expert_actions)
+    kl_good = calculate_planning_kl_divergence(learned_actions_good, expert_actions)
+    kl_poor = calculate_planning_kl_divergence(learned_actions_poor, expert_actions)
     
     print("KL Divergence (Imitation Learning):")
     print(f"  Expert distribution: {expert_actions}")
@@ -326,7 +326,7 @@ def example_9_end_to_end_benchmark():
     print("-" * 80)
     
     # 1. L2 distance
-    l2 = l2_distance(pred_traj, expert_traj)
+    l2 = calculate_l2_distance(pred_traj, expert_traj)
     print(f"1. L2 Distance: {l2:.3f} m")
     
     # 2. ADE/FDE
@@ -334,27 +334,27 @@ def example_9_end_to_end_benchmark():
     print(f"2. ADE: {ade_result['ADE']:.3f} m, FDE: {ade_result['FDE']:.3f} m")
     
     # 3. Collision safety
-    coll = collision_rate(pred_traj, obstacles, vehicle_size=(4.5, 2.0))
+    coll = calculate_collision_rate(pred_traj, obstacles, vehicle_size=(4.5, 2.0))
     print(f"3. Collision Rate: {coll['collision_rate']:.1%} ({coll['num_collisions']} collisions)")
     
     # 4. Progress
-    prog = progress_score(pred_traj, ref_path)
+    prog = calculate_progress_score(pred_traj, ref_path)
     print(f"4. Progress: {prog['progress']:.1f}m ({prog['progress_ratio']:.1%}), Goal: {prog['goal_reached']}")
     
     # 5. Route completion
-    route = route_completion(pred_traj, waypoints, completion_radius=2.0)
+    route = calculate_route_completion(pred_traj, waypoints, completion_radius=2.0)
     print(f"5. Waypoints: {route['num_waypoints_reached']}/{route['total_waypoints']} ({route['completion_rate']:.1%})")
     
     # 6. Lateral deviation
-    lateral = lateral_deviation(pred_traj, ref_path)
+    lateral = calculate_lateral_deviation(pred_traj, ref_path)
     print(f"6. Lateral Error: {lateral['mean_lateral_error']:.3f}m (max: {lateral['max_lateral_error']:.3f}m)")
     
     # 7. Comfort
-    comfort = comfort_metrics(pred_traj, t, max_acceleration=3.0, max_jerk=3.0)
+    comfort = calculate_comfort_metrics(pred_traj, t, max_acceleration=3.0, max_jerk=3.0)
     print(f"7. Comfort: Rate={comfort['comfort_rate']:.1%}, Violations={comfort['comfort_violations']}")
     
     # 8. Overall score
-    overall = driving_score(pred_traj, expert_traj, obstacles, ref_path, t)
+    overall = calculate_driving_score(pred_traj, expert_traj, obstacles, ref_path, t)
     print(f"\n{'='*80}")
     print(f"OVERALL DRIVING SCORE: {overall['driving_score']:.1f}/100")
     print(f"{'='*80}")

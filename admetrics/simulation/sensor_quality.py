@@ -11,7 +11,7 @@ from scipy import stats
 from scipy.spatial.distance import cdist
 
 
-def camera_image_quality(
+def calculate_camera_image_quality(
     sim_images: np.ndarray,
     real_images: np.ndarray,
     metrics: Optional[List[str]] = None
@@ -114,7 +114,7 @@ def camera_image_quality(
     return results
 
 
-def lidar_point_cloud_quality(
+def calculate_lidar_point_cloud_quality(
     sim_points: np.ndarray,
     real_points: np.ndarray,
     max_range: float = 100.0
@@ -225,7 +225,7 @@ def lidar_point_cloud_quality(
     return results
 
 
-def radar_quality(
+def calculate_radar_quality(
     sim_detections: np.ndarray,
     real_detections: np.ndarray
 ) -> Dict[str, float]:
@@ -306,7 +306,7 @@ def radar_quality(
     return results
 
 
-def sensor_noise_characteristics(
+def calculate_sensor_noise_characteristics(
     sim_measurements: np.ndarray,
     real_measurements: np.ndarray,
     ground_truth: Optional[np.ndarray] = None
@@ -379,7 +379,7 @@ def sensor_noise_characteristics(
     return results
 
 
-def multimodal_sensor_alignment(
+def calculate_multimodal_sensor_alignment(
     camera_detections: np.ndarray,
     lidar_detections: np.ndarray,
     camera_to_lidar_transform: Optional[np.ndarray] = None
@@ -477,7 +477,7 @@ def multimodal_sensor_alignment(
     return results
 
 
-def temporal_consistency(
+def calculate_temporal_consistency(
     detections_sequence: List[np.ndarray],
     fps: float = 10.0
 ) -> Dict[str, float]:
@@ -564,7 +564,7 @@ def temporal_consistency(
     return results
 
 
-def perception_sim2real_gap(
+def calculate_perception_sim2real_gap(
     sim_detections: List[Dict],
     real_detections: List[Dict],
     metrics: Optional[List[str]] = None

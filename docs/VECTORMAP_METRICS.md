@@ -107,7 +107,7 @@ from admetrics.vectormap import chamfer_distance_polyline
 predicted = np.array([[0, 0], [1, 0], [2, 0]])
 ground_truth = np.array([[0, 0.1], [1, 0.1], [2, 0.1]])
 
-result = chamfer_distance_polyline(predicted, ground_truth, threshold=0.5)
+result = calculate_chamfer_distance_polyline(predicted, ground_truth, threshold=0.5)
 print(f"Chamfer Distance: {result['chamfer_distance']:.3f}m")
 print(f"Precision: {result['precision']:.1%}")
 print(f"Recall: {result['recall']:.1%}")
@@ -162,7 +162,7 @@ from admetrics.vectormap import frechet_distance
 curve1 = np.array([[0, 0], [5, 2], [10, 0]])
 curve2 = np.array([[0, 0.5], [5, 2.5], [10, 0.5]])
 
-distance = frechet_distance(curve1, curve2)
+distance = calculate_frechet_distance(curve1, curve2)
 print(f"Fréchet Distance: {distance:.3f}m")
 ```
 
@@ -211,7 +211,7 @@ from admetrics.vectormap import polyline_iou
 pred_line = np.array([[0, 0], [10, 0]])
 gt_line = np.array([[0, 0.5], [10, 0.5]])
 
-iou = polyline_iou(pred_line, gt_line, width=2.0)
+iou = calculate_polyline_iou(pred_line, gt_line, width=2.0)
 print(f"Polyline IoU: {iou:.3f}")
 ```
 
@@ -260,7 +260,7 @@ ground_truth_lanes = [
     np.array([[0, 6], [10, 6]])  # Missed lane
 ]
 
-result = lane_detection_metrics(
+result = calculate_lane_detection_metrics(
     predicted_lanes, ground_truth_lanes,
     threshold=1.0, metric='chamfer'
 )
@@ -321,7 +321,7 @@ predicted_lanes = [
     # ...
 ]
 
-result = topology_metrics(predicted_lanes, ground_truth_lanes, matching_threshold=1.0)
+result = calculate_topology_metrics(predicted_lanes, ground_truth_lanes, matching_threshold=1.0)
 print(f"Successor Accuracy: {result['successor_accuracy']:.1%}")
 print(f"Neighbor Accuracy: {result['neighbor_accuracy']:.1%}")
 ```
@@ -365,7 +365,7 @@ from admetrics.vectormap import endpoint_error
 pred_polyline = np.array([[0, 0], [5, 1], [10, 0]])
 gt_polyline = np.array([[0.2, 0.1], [5, 1], [9.8, 0.1]])
 
-result = endpoint_error(pred_polyline, gt_polyline)
+result = calculate_endpoint_error(pred_polyline, gt_polyline)
 print(f"Start Error: {result['start_error']:.3f}m")
 print(f"End Error: {result['end_error']:.3f}m")
 ```
@@ -413,7 +413,7 @@ from admetrics.vectormap import direction_accuracy
 pred_polyline = np.array([[0, 0], [10, 0], [20, 5]])
 gt_polyline = np.array([[0, 0], [10, 0.5], [20, 5]])
 
-result = direction_accuracy(pred_polyline, gt_polyline)
+result = calculate_direction_accuracy(pred_polyline, gt_polyline)
 print(f"Mean Angle Error: {result['mean_angle_error_deg']:.2f}°")
 print(f"Direction Accuracy: {result['direction_accuracy']:.1%}")
 ```
@@ -457,7 +457,7 @@ mAP = mean(AP@d₁, AP@d₂, ..., AP@dₙ)
 ```python
 from admetrics.vectormap import vectormap_ap
 
-result = vectormap_ap(
+result = calculate_vectormap_ap(
     predicted_lanes, ground_truth_lanes,
     thresholds=[0.5, 1.0, 2.0],
     metric='chamfer'
@@ -496,16 +496,16 @@ ground_truth_lanes = load_ground_truth_lanes()
 
 # 1. Geometric accuracy per lane
 for pred, gt in zip(predicted_lanes, ground_truth_lanes):
-    chamfer = chamfer_distance_polyline(pred, gt, threshold=1.0)
-    frechet = frechet_distance(pred, gt)
-    iou = polyline_iou(pred, gt, width=2.0)
+    chamfer = calculate_chamfer_distance_polyline(pred, gt, threshold=1.0)
+    frechet = calculate_frechet_distance(pred, gt)
+    iou = calculate_polyline_iou(pred, gt, width=2.0)
     
     print(f"Chamfer: {chamfer['chamfer_distance']:.2f}m")
     print(f"Fréchet: {frechet:.2f}m")
     print(f"IoU: {iou:.2f}")
 
 # 2. Detection metrics (precision/recall)
-detection = lane_detection_metrics(
+detection = calculate_lane_detection_metrics(
     predicted_lanes, ground_truth_lanes,
     threshold=1.0, metric='chamfer'
 )
@@ -515,21 +515,21 @@ print(f"  Recall: {detection['recall']:.1%}")
 print(f"  F1: {detection['f1_score']:.3f}")
 
 # 3. Topology evaluation
-topology = topology_metrics(predicted_lanes, ground_truth_lanes)
+topology = calculate_topology_metrics(predicted_lanes, ground_truth_lanes)
 print(f"\nTopology Metrics:")
 print(f"  Successor Accuracy: {topology['successor_accuracy']:.1%}")
 print(f"  Neighbor Accuracy: {topology['neighbor_accuracy']:.1%}")
 
 # 4. Endpoint and direction accuracy
 for pred, gt in zip(predicted_lanes, ground_truth_lanes):
-    endpoint = endpoint_error(pred, gt)
-    direction = direction_accuracy(pred, gt)
+    endpoint = calculate_endpoint_error(pred, gt)
+    direction = calculate_direction_accuracy(pred, gt)
     
     print(f"\nEndpoint Error: {endpoint['mean_error']:.2f}m")
     print(f"Direction Error: {direction['mean_angle_error_deg']:.1f}°")
 
 # 5. Overall AP metric
-ap_result = vectormap_ap(
+ap_result = calculate_vectormap_ap(
     predicted_lanes, ground_truth_lanes,
     thresholds=[0.5, 1.0, 2.0],
     metric='chamfer'
@@ -554,10 +554,10 @@ for dataset in datasets:
         gts = load_ground_truth(dataset)
         
         metrics = {
-            'chamfer': chamfer_distance_polyline(preds, gts, threshold=1.0),
-            'detection': lane_detection_metrics(preds, gts, threshold=1.0),
-            'topology': topology_metrics(preds, gts),
-            'ap': vectormap_ap(preds, gts, thresholds=[0.5, 1.0, 2.0])
+            'chamfer': calculate_chamfer_distance_polyline(preds, gts, threshold=1.0),
+            'detection': calculate_lane_detection_metrics(preds, gts, threshold=1.0),
+            'topology': calculate_topology_metrics(preds, gts),
+            'ap': calculate_vectormap_ap(preds, gts, thresholds=[0.5, 1.0, 2.0])
         }
         
         results[(dataset, model)] = metrics
@@ -736,23 +736,23 @@ def evaluate_vectormap_model(predictions, ground_truth):
     
     # 1. Geometric Accuracy
     geometric = {
-        'chamfer': chamfer_distance_polyline(predictions, ground_truth, threshold=1.0),
-        'frechet': np.mean([frechet_distance(p, g) for p, g in zip(predictions, ground_truth)]),
-        'iou': np.mean([polyline_iou(p, g, width=2.0) for p, g in zip(predictions, ground_truth)])
+        'chamfer': calculate_chamfer_distance_polyline(predictions, ground_truth, threshold=1.0),
+        'frechet': np.mean([calculate_frechet_distance(p, g) for p, g in zip(predictions, ground_truth)]),
+        'iou': np.mean([calculate_polyline_iou(p, g, width=2.0) for p, g in zip(predictions, ground_truth)])
     }
     
     # 2. Detection Performance
-    detection = lane_detection_metrics(predictions, ground_truth, threshold=1.0)
+    detection = calculate_lane_detection_metrics(predictions, ground_truth, threshold=1.0)
     
     # 3. Topology (if available)
-    topology = topology_metrics(predictions, ground_truth, matching_threshold=1.0)
+    topology = calculate_topology_metrics(predictions, ground_truth, matching_threshold=1.0)
     
     # 4. Semantic Accuracy
-    endpoints = np.mean([endpoint_error(p, g)['mean_error'] for p, g in zip(predictions, ground_truth)])
-    directions = np.mean([direction_accuracy(p, g)['mean_angle_error_deg'] for p, g in zip(predictions, ground_truth)])
+    endpoints = np.mean([calculate_endpoint_error(p, g)['mean_error'] for p, g in zip(predictions, ground_truth)])
+    directions = np.mean([calculate_direction_accuracy(p, g)['mean_angle_error_deg'] for p, g in zip(predictions, ground_truth)])
     
     # 5. Overall AP
-    ap = vectormap_ap(predictions, ground_truth, thresholds=[0.5, 1.0, 2.0])
+    ap = calculate_vectormap_ap(predictions, ground_truth, thresholds=[0.5, 1.0, 2.0])
     
     return {
         'geometric': geometric,

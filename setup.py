@@ -6,6 +6,9 @@ setup(
     description="Comprehensive metrics library for autonomous driving: detection, tracking, prediction, and localization",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
+    author="AD-Metrics Contributors",
+    author_email="",
+    url="https://github.com/naurril/ad-metrics",
     packages=find_packages(),
     install_requires=[
         "numpy>=1.20.0",

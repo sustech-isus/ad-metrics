@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from scipy.spatial.distance import cdist
 
 
-def occupancy_iou(
+def calculate_occupancy_iou(
     pred_occupancy: np.ndarray,
     gt_occupancy: np.ndarray,
     class_id: Optional[int] = None,
@@ -60,7 +60,7 @@ def occupancy_iou(
     return float(intersection / union)
 
 
-def mean_iou(
+def calculate_mean_iou(
     pred_occupancy: np.ndarray,
     gt_occupancy: np.ndarray,
     num_classes: int,
@@ -127,7 +127,7 @@ def mean_iou(
     }
 
 
-def occupancy_precision_recall(
+def calculate_occupancy_precision_recall(
     pred_occupancy: np.ndarray,
     gt_occupancy: np.ndarray,
     class_id: Optional[int] = None,
@@ -188,7 +188,7 @@ def occupancy_precision_recall(
     }
 
 
-def scene_completion(
+def calculate_scene_completion(
     pred_occupancy: np.ndarray,
     gt_occupancy: np.ndarray,
     free_class: int = 0,
@@ -278,7 +278,7 @@ def scene_completion(
     }
 
 
-def chamfer_distance(
+def calculate_chamfer_distance(
     pred_points: np.ndarray,
     gt_points: np.ndarray,
     bidirectional: bool = True
@@ -338,7 +338,7 @@ def chamfer_distance(
     return result
 
 
-def surface_distance(
+def calculate_surface_distance(
     pred_occupancy: np.ndarray,
     gt_occupancy: np.ndarray,
     voxel_size: float = 1.0,

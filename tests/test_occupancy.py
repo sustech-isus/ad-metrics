@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 from admetrics.occupancy import (
-    occupancy_iou,
-    mean_iou,
-    occupancy_precision_recall,
-    scene_completion,
-    chamfer_distance,
-    surface_distance,
+    calculate_occupancy_iou,
+    calculate_mean_iou,
+    calculate_occupancy_precision_recall,
+    calculate_scene_completion,
+    calculate_chamfer_distance,
+    calculate_surface_distance,
 )
 
 
@@ -20,7 +20,7 @@ class TestOccupancyIoU:
         pred = np.array([[[0, 1], [1, 1]], [[0, 0], [1, 0]]])
         gt = pred.copy()
         
-        iou = occupancy_iou(pred, gt, class_id=1)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1)
         assert iou == 1.0
     
     def test_no_overlap(self):
@@ -28,7 +28,7 @@ class TestOccupancyIoU:
         pred = np.array([[[0, 0], [0, 0]], [[1, 1], [1, 1]]])
         gt = np.array([[[1, 1], [1, 1]], [[0, 0], [0, 0]]])
         
-        iou = occupancy_iou(pred, gt, class_id=1)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1)
         assert iou == 0.0
     
     def test_partial_overlap(self):
@@ -36,7 +36,7 @@ class TestOccupancyIoU:
         pred = np.array([[[0, 1], [1, 1]], [[0, 0], [1, 0]]])
         gt = np.array([[[0, 1], [1, 0]], [[0, 1], [1, 0]]])
         
-        iou = occupancy_iou(pred, gt, class_id=1)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1)
         # pred has 1s at: (0,0,1), (0,1,0), (0,1,1), (1,2,0) = 4 positions
         # gt has 1s at: (0,0,1), (1,1,0), (1,2,0) = 3 positions
         # Intersection: (0,0,1), (1,2,0) = 2 positions (WAIT - let me recount)
@@ -54,7 +54,7 @@ class TestOccupancyIoU:
         gt = np.array([[[0, 2], [1, 0]], [[0, 3], [2, 0]]])
         
         # Binary: any non-zero is occupied
-        iou = occupancy_iou(pred, gt, class_id=None)
+        iou = calculate_occupancy_iou(pred, gt, class_id=None)
         # pred occupied: (0,0,1), (0,1,0), (0,1,1), (1,2,0) = 4 voxels
         # gt occupied: (0,0,1), (0,1,0), (1,1,0), (1,1,1) = 4 voxels  
         # Recalculating based on actual positions
@@ -66,7 +66,7 @@ class TestOccupancyIoU:
         pred = np.array([[[0, 1], [1, 1]], [[0, 0], [1, 255]]])
         gt = np.array([[[0, 1], [1, 255]], [[0, 1], [1, 0]]])
         
-        iou = occupancy_iou(pred, gt, class_id=1, ignore_index=255)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1, ignore_index=255)
         # Ignore positions with 255 in GT
         assert 0.0 <= iou <= 1.0
     
@@ -75,7 +75,7 @@ class TestOccupancyIoU:
         pred = np.zeros((5, 5, 5), dtype=int)
         gt = np.zeros((5, 5, 5), dtype=int)
         
-        iou = occupancy_iou(pred, gt, class_id=1)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1)
         assert iou == 1.0  # Both empty, perfect match
     
     def test_shape_mismatch(self):
@@ -84,7 +84,7 @@ class TestOccupancyIoU:
         gt = np.zeros((10, 10, 10))
         
         with pytest.raises(ValueError, match="Shape mismatch"):
-            occupancy_iou(pred, gt)
+            calculate_occupancy_iou(pred, gt)
 
 
 class TestMeanIoU:
@@ -95,7 +95,7 @@ class TestMeanIoU:
         pred = np.random.randint(0, 3, size=(10, 10, 10))
         gt = pred.copy()
         
-        result = mean_iou(pred, gt, num_classes=3)
+        result = calculate_mean_iou(pred, gt, num_classes=3)
         assert result['mIoU'] == 1.0
         assert result['valid_classes'] == 3
         assert all(iou == 1.0 for iou in result['class_iou'].values())
@@ -111,7 +111,7 @@ class TestMeanIoU:
         gt[5:, :, :] = 1
         gt[:, 5:, :] = 2
         
-        result = mean_iou(pred, gt, num_classes=3)
+        result = calculate_mean_iou(pred, gt, num_classes=3)
         assert 0.0 <= result['mIoU'] <= 1.0
         assert result['valid_classes'] <= 3
         assert len(result['class_iou']) == 3
@@ -121,7 +121,7 @@ class TestMeanIoU:
         pred = np.random.randint(0, 4, size=(10, 10, 10))
         gt = np.random.randint(0, 4, size=(10, 10, 10))
         
-        result = mean_iou(pred, gt, num_classes=4, ignore_classes=[0])
+        result = calculate_mean_iou(pred, gt, num_classes=4, ignore_classes=[0])
         assert 0 not in [k for k, v in result['class_iou'].items() if not np.isnan(v)]
     
     def test_missing_classes(self):
@@ -130,7 +130,7 @@ class TestMeanIoU:
         pred = np.random.randint(0, 2, size=(10, 10, 10))
         gt = np.random.randint(0, 2, size=(10, 10, 10))
         
-        result = mean_iou(pred, gt, num_classes=5)
+        result = calculate_mean_iou(pred, gt, num_classes=5)
         assert result['valid_classes'] <= 2
         # Classes 2, 3, 4 should have NaN IoU
         assert any(np.isnan(iou) for iou in result['class_iou'].values())
@@ -141,7 +141,7 @@ class TestMeanIoU:
         gt = np.zeros((10, 10, 10))
         
         with pytest.raises(ValueError, match="Shape mismatch"):
-            mean_iou(pred, gt, num_classes=3)
+            calculate_mean_iou(pred, gt, num_classes=3)
 
 
 class TestOccupancyPrecisionRecall:
@@ -152,7 +152,7 @@ class TestOccupancyPrecisionRecall:
         pred = np.array([[[0, 1], [1, 1]], [[0, 0], [1, 0]]])
         gt = pred.copy()
         
-        metrics = occupancy_precision_recall(pred, gt, class_id=1)
+        metrics = calculate_occupancy_precision_recall(pred, gt, class_id=1)
         assert metrics['precision'] == 1.0
         assert metrics['recall'] == 1.0
         assert metrics['f1'] == 1.0
@@ -166,7 +166,7 @@ class TestOccupancyPrecisionRecall:
         pred = np.ones((5, 5, 5), dtype=int)
         gt = np.zeros((5, 5, 5), dtype=int)
         
-        metrics = occupancy_precision_recall(pred, gt, class_id=1)
+        metrics = calculate_occupancy_precision_recall(pred, gt, class_id=1)
         assert metrics['precision'] == 0.0
         assert metrics['recall'] == 0.0
         assert metrics['f1'] == 0.0
@@ -178,7 +178,7 @@ class TestOccupancyPrecisionRecall:
         pred = np.zeros((5, 5, 5), dtype=int)
         gt = np.ones((5, 5, 5), dtype=int)
         
-        metrics = occupancy_precision_recall(pred, gt, class_id=1)
+        metrics = calculate_occupancy_precision_recall(pred, gt, class_id=1)
         assert metrics['precision'] == 0.0
         assert metrics['recall'] == 0.0
         assert metrics['f1'] == 0.0
@@ -190,7 +190,7 @@ class TestOccupancyPrecisionRecall:
         pred = np.array([[[0, 1], [1, 1]], [[0, 0], [1, 0]]])
         gt = np.array([[[0, 1], [1, 0]], [[0, 1], [1, 0]]])
         
-        metrics = occupancy_precision_recall(pred, gt, class_id=1)
+        metrics = calculate_occupancy_precision_recall(pred, gt, class_id=1)
         # Actual results from the implementation
         assert metrics['true_positives'] == 3
         assert metrics['false_positives'] == 1
@@ -204,7 +204,7 @@ class TestOccupancyPrecisionRecall:
         pred = np.array([[[0, 1], [2, 3]], [[0, 0], [1, 0]]])
         gt = np.array([[[0, 2], [1, 0]], [[0, 3], [2, 0]]])
         
-        metrics = occupancy_precision_recall(pred, gt, class_id=None)
+        metrics = calculate_occupancy_precision_recall(pred, gt, class_id=None)
         assert 'precision' in metrics
         assert 'recall' in metrics
         assert 'f1' in metrics
@@ -218,7 +218,7 @@ class TestSceneCompletion:
         pred = np.random.randint(0, 3, size=(10, 10, 10))
         gt = pred.copy()
         
-        sc = scene_completion(pred, gt, free_class=0)
+        sc = calculate_scene_completion(pred, gt, free_class=0)
         assert sc['SC_IoU'] == 1.0
         assert sc['SC_Precision'] == 1.0
         assert sc['SC_Recall'] == 1.0
@@ -230,7 +230,7 @@ class TestSceneCompletion:
         gt = np.zeros((10, 10, 10), dtype=int)
         gt[5:, 5:, 5:] = 1
         
-        sc = scene_completion(pred, gt, free_class=0)
+        sc = calculate_scene_completion(pred, gt, free_class=0)
         assert sc['SC_Precision'] < 1.0
         assert sc['SC_Recall'] == 1.0
         assert sc['completion_ratio'] > 1.0
@@ -240,7 +240,7 @@ class TestSceneCompletion:
         pred = np.zeros((10, 10, 10), dtype=int)
         gt = np.ones((10, 10, 10), dtype=int)
         
-        sc = scene_completion(pred, gt, free_class=0)
+        sc = calculate_scene_completion(pred, gt, free_class=0)
         assert sc['SC_IoU'] == 0.0
         assert sc['SC_Precision'] == 0.0
         assert sc['SC_Recall'] == 0.0
@@ -257,7 +257,7 @@ class TestSceneCompletion:
         gt[:5, :, :] = 1
         gt[5:, :, :] = 2
         
-        sc = scene_completion(pred, gt, free_class=0)
+        sc = calculate_scene_completion(pred, gt, free_class=0)
         assert sc['SSC_mIoU'] == 1.0
     
     def test_mixed_scene(self):
@@ -268,7 +268,7 @@ class TestSceneCompletion:
         gt = np.zeros((10, 10, 10), dtype=int)
         gt[3:7, 3:7, 3:7] = 1
         
-        sc = scene_completion(pred, gt, free_class=0)
+        sc = calculate_scene_completion(pred, gt, free_class=0)
         assert 0.0 < sc['SC_IoU'] < 1.0
         # pred cube is 6x6x6 = 216, gt cube is 4x4x4 = 64
         # completion_ratio = 216/64 = 3.375
@@ -282,7 +282,7 @@ class TestChamferDistance:
         """Test Chamfer Distance with identical point clouds."""
         points = np.random.rand(100, 3)
         
-        cd = chamfer_distance(points, points, bidirectional=True)
+        cd = calculate_chamfer_distance(points, points, bidirectional=True)
         assert cd['chamfer_distance'] == pytest.approx(0.0, abs=1e-6)
         assert cd['pred_to_gt'] == pytest.approx(0.0, abs=1e-6)
         assert cd['gt_to_pred'] == pytest.approx(0.0, abs=1e-6)
@@ -292,7 +292,7 @@ class TestChamferDistance:
         pred = np.random.rand(50, 3)
         gt = np.random.rand(60, 3) + 1.0  # Offset by 1 unit
         
-        cd = chamfer_distance(pred, gt, bidirectional=True)
+        cd = calculate_chamfer_distance(pred, gt, bidirectional=True)
         assert cd['chamfer_distance'] > 0.0
         assert cd['pred_to_gt'] > 0.0
         assert cd['gt_to_pred'] > 0.0
@@ -302,7 +302,7 @@ class TestChamferDistance:
         pred = np.random.rand(50, 3)
         gt = np.random.rand(60, 3)
         
-        cd = chamfer_distance(pred, gt, bidirectional=False)
+        cd = calculate_chamfer_distance(pred, gt, bidirectional=False)
         assert cd['chamfer_distance'] == cd['pred_to_gt']
         assert cd['gt_to_pred'] is None
     
@@ -311,7 +311,7 @@ class TestChamferDistance:
         pred = np.array([]).reshape(0, 3)
         gt = np.random.rand(50, 3)
         
-        cd = chamfer_distance(pred, gt, bidirectional=True)
+        cd = calculate_chamfer_distance(pred, gt, bidirectional=True)
         assert cd['chamfer_distance'] == np.inf
     
     def test_single_points(self):
@@ -319,7 +319,7 @@ class TestChamferDistance:
         pred = np.array([[0.0, 0.0, 0.0]])
         gt = np.array([[1.0, 0.0, 0.0]])
         
-        cd = chamfer_distance(pred, gt, bidirectional=True)
+        cd = calculate_chamfer_distance(pred, gt, bidirectional=True)
         assert cd['chamfer_distance'] == pytest.approx(1.0, abs=1e-6)
     
     def test_invalid_shape(self):
@@ -328,7 +328,7 @@ class TestChamferDistance:
         gt = np.random.rand(60, 3)
         
         with pytest.raises(ValueError, match="must have shape"):
-            chamfer_distance(pred, gt)
+            calculate_chamfer_distance(pred, gt)
 
 
 class TestSurfaceDistance:
@@ -339,7 +339,7 @@ class TestSurfaceDistance:
         occupancy = np.zeros((20, 20, 20), dtype=int)
         occupancy[5:15, 5:15, 5:15] = 1
         
-        sd = surface_distance(occupancy, occupancy, voxel_size=0.2)
+        sd = calculate_surface_distance(occupancy, occupancy, voxel_size=0.2)
         assert sd['mean_surface_distance'] == pytest.approx(0.0, abs=1e-6)
         assert sd['median_surface_distance'] == pytest.approx(0.0, abs=1e-6)
         assert sd['std_surface_distance'] == pytest.approx(0.0, abs=1e-6)
@@ -352,7 +352,7 @@ class TestSurfaceDistance:
         gt = np.zeros((20, 20, 20), dtype=int)
         gt[6:14, 6:14, 6:14] = 1
         
-        sd = surface_distance(pred, gt, voxel_size=0.2)
+        sd = calculate_surface_distance(pred, gt, voxel_size=0.2)
         assert sd['mean_surface_distance'] > 0.0
         assert sd['median_surface_distance'] > 0.0
         assert sd['max_surface_distance'] > 0.0
@@ -365,8 +365,8 @@ class TestSurfaceDistance:
         gt = np.zeros((20, 20, 20), dtype=int)
         gt[6:14, 6:14, 6:14] = 1
         
-        sd1 = surface_distance(pred, gt, voxel_size=1.0)
-        sd2 = surface_distance(pred, gt, voxel_size=2.0)
+        sd1 = calculate_surface_distance(pred, gt, voxel_size=1.0)
+        sd2 = calculate_surface_distance(pred, gt, voxel_size=2.0)
         
         # With 2x voxel size, distances should be ~2x
         assert sd2['mean_surface_distance'] == pytest.approx(
@@ -381,7 +381,7 @@ class TestSurfaceDistance:
         gt = np.zeros((20, 20, 20), dtype=int)
         gt[6:14, 6:14, 6:14] = 1
         
-        sd = surface_distance(pred, gt, voxel_size=0.2, percentile=95)
+        sd = calculate_surface_distance(pred, gt, voxel_size=0.2, percentile=95)
         assert sd['percentile_distance'] is not None
         assert sd['percentile_distance'] >= sd['median_surface_distance']
         assert sd['percentile_distance'] <= sd['max_surface_distance']
@@ -394,7 +394,7 @@ class TestSurfaceDistance:
         gt = np.zeros((20, 20, 20), dtype=int)
         gt[6:14, 6:14, 6:14] = 1
         
-        sd = surface_distance(pred, gt, voxel_size=0.2, percentile=None)
+        sd = calculate_surface_distance(pred, gt, voxel_size=0.2, percentile=None)
         assert sd['percentile_distance'] is None
     
     def test_empty_occupancy(self):
@@ -402,7 +402,7 @@ class TestSurfaceDistance:
         pred = np.zeros((20, 20, 20), dtype=int)
         gt = np.zeros((20, 20, 20), dtype=int)
         
-        sd = surface_distance(pred, gt, voxel_size=0.2)
+        sd = calculate_surface_distance(pred, gt, voxel_size=0.2)
         assert sd['mean_surface_distance'] == np.inf
     
     def test_shape_mismatch(self):
@@ -411,7 +411,7 @@ class TestSurfaceDistance:
         gt = np.zeros((20, 20, 20))
         
         with pytest.raises(ValueError, match="Shape mismatch"):
-            surface_distance(pred, gt)
+            calculate_surface_distance(pred, gt)
 
 
 class TestEdgeCases:
@@ -423,7 +423,7 @@ class TestEdgeCases:
         pred = np.random.randint(0, 3, size=(50, 50, 50))
         gt = np.random.randint(0, 3, size=(50, 50, 50))
         
-        result = mean_iou(pred, gt, num_classes=3)
+        result = calculate_mean_iou(pred, gt, num_classes=3)
         assert 0.0 <= result['mIoU'] <= 1.0
     
     def test_single_voxel(self):
@@ -431,7 +431,7 @@ class TestEdgeCases:
         pred = np.array([[[1]]])
         gt = np.array([[[1]]])
         
-        iou = occupancy_iou(pred, gt, class_id=1)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1)
         assert iou == 1.0
     
     def test_all_ignored(self):
@@ -439,7 +439,7 @@ class TestEdgeCases:
         pred = np.ones((5, 5, 5), dtype=int) * 255
         gt = np.ones((5, 5, 5), dtype=int) * 255
         
-        iou = occupancy_iou(pred, gt, class_id=1, ignore_index=255)
+        iou = calculate_occupancy_iou(pred, gt, class_id=1, ignore_index=255)
         assert iou == 1.0  # No valid voxels, perfect match
     
     def test_many_classes(self):
@@ -447,6 +447,6 @@ class TestEdgeCases:
         pred = np.random.randint(0, 20, size=(30, 30, 30))
         gt = np.random.randint(0, 20, size=(30, 30, 30))
         
-        result = mean_iou(pred, gt, num_classes=20)
+        result = calculate_mean_iou(pred, gt, num_classes=20)
         assert 'mIoU' in result
         assert len(result['class_iou']) == 20

@@ -7,23 +7,23 @@ Used in HD mapping, online mapping, and map-based localization tasks.
 """
 
 from .vectormap import (
-    chamfer_distance_polyline,
-    frechet_distance,
-    polyline_iou,
-    lane_detection_metrics,
-    topology_metrics,
-    endpoint_error,
-    direction_accuracy,
-    vectormap_ap,
+    calculate_chamfer_distance_polyline,
+    calculate_frechet_distance,
+    calculate_polyline_iou,
+    calculate_lane_detection_metrics,
+    calculate_topology_metrics,
+    calculate_endpoint_error,
+    calculate_direction_accuracy,
+    calculate_vectormap_ap,
 )
 
 __all__ = [
-    'chamfer_distance_polyline',
-    'frechet_distance',
-    'polyline_iou',
-    'lane_detection_metrics',
-    'topology_metrics',
-    'endpoint_error',
-    'direction_accuracy',
-    'vectormap_ap',
+    'calculate_chamfer_distance_polyline',
+    'calculate_frechet_distance',
+    'calculate_polyline_iou',
+    'calculate_lane_detection_metrics',
+    'calculate_topology_metrics',
+    'calculate_endpoint_error',
+    'calculate_direction_accuracy',
+    'calculate_vectormap_ap',
 ]

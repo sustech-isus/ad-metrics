@@ -7,7 +7,7 @@ using KITTI dataset format and metrics.
 
 import numpy as np
 from admetrics import calculate_ap, calculate_aos
-from admetrics.confusion import calculate_confusion_metrics
+from admetrics.detection import calculate_confusion_metrics
 
 
 def load_kitti_predictions(file_path=None):

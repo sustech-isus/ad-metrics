@@ -74,7 +74,7 @@ PSNR = 20 * log10(MAX_PIXEL / sqrt(MSE))
 ```python
 from admetrics.simulation import camera_image_quality
 
-quality = camera_image_quality(
+quality = calculate_camera_image_quality(
     sim_images,      # (N, H, W, 3)
     real_images,     # (N, H, W, 3)
     metrics=['psnr', 'ssim', 'color_distribution', 'brightness', 'contrast']
@@ -133,7 +133,7 @@ Chamfer = (1/|Sim|) Σ min_dist(p_sim, Real) + (1/|Real|) Σ min_dist(p_real, Si
 ```python
 from admetrics.simulation import lidar_point_cloud_quality
 
-quality = lidar_point_cloud_quality(
+quality = calculate_lidar_point_cloud_quality(
     sim_points,    # (N, 3) or (N, 4) with intensity
     real_points,   # (M, 3) or (M, 4)
     max_range=100.0
@@ -177,7 +177,7 @@ Evaluate radar simulation fidelity (less common but important for robust AV).
 ```python
 from admetrics.simulation import radar_quality
 
-quality = radar_quality(
+quality = calculate_radar_quality(
     sim_detections,  # (N, 5) [x, y, z, velocity, rcs]
     real_detections  # (M, 5)
 )
@@ -225,7 +225,7 @@ SNR = 10 * log10(signal_power / noise_power)
 from admetrics.simulation import sensor_noise_characteristics
 
 # Repeated measurements of same target
-quality = sensor_noise_characteristics(
+quality = calculate_sensor_noise_characteristics(
     sim_measurements,   # (N, D)
     real_measurements,  # (M, D)
     ground_truth=gt     # (D,)
@@ -269,7 +269,7 @@ Evaluate calibration quality between different sensor modalities.
 ```python
 from admetrics.simulation import multimodal_sensor_alignment
 
-quality = multimodal_sensor_alignment(
+quality = calculate_multimodal_sensor_alignment(
     camera_detections,  # (N, 7) [x, y, z, l, w, h, yaw]
     lidar_detections    # (M, 7)
 )
@@ -311,7 +311,7 @@ Evaluate frame-to-frame coherence of sensor data.
 ```python
 from admetrics.simulation import temporal_consistency
 
-quality = temporal_consistency(
+quality = calculate_temporal_consistency(
     detections_sequence,  # List of (N_t, D) arrays
     fps=10.0
 )
@@ -354,7 +354,7 @@ Gap = Performance_sim - Performance_real
 ```python
 from admetrics.simulation import perception_sim2real_gap
 
-gap = perception_sim2real_gap(
+gap = calculate_perception_sim2real_gap(
     sim_results,   # List of dicts with predictions/ground_truth
     real_results   # Same format
 )
@@ -394,7 +394,7 @@ real_lidar_data = collect_real_lidar_scans(scenarios)
 **Evaluate simulation:**
 ```python
 # Compare on same scenarios
-quality = camera_image_quality(sim_data, real_data)
+quality = calculate_camera_image_quality(sim_data, real_data)
 assert quality['psnr'] > 25, "Image quality too poor"
 ```
 
@@ -438,22 +438,22 @@ def validate_simulation(sim_data, real_data):
     results = {}
     
     # Camera quality
-    cam_quality = camera_image_quality(sim_data['camera'], real_data['camera'])
+    cam_quality = calculate_camera_image_quality(sim_data['camera'], real_data['camera'])
     results['camera_psnr'] = cam_quality['psnr']
     
     # LiDAR quality
-    lidar_quality = lidar_point_cloud_quality(sim_data['lidar'], real_data['lidar'])
+    lidar_quality = calculate_lidar_point_cloud_quality(sim_data['lidar'], real_data['lidar'])
     results['lidar_chamfer'] = lidar_quality['chamfer_distance']
     
     # Noise characteristics
-    noise_quality = sensor_noise_characteristics(
+    noise_quality = calculate_sensor_noise_characteristics(
         sim_data['noise_samples'],
         real_data['noise_samples']
     )
     results['noise_std_ratio'] = noise_quality['noise_std_ratio']
     
     # Sim2Real gap
-    gap = perception_sim2real_gap(sim_data['detections'], real_data['detections'])
+    gap = calculate_perception_sim2real_gap(sim_data['detections'], real_data['detections'])
     results['performance_drop'] = gap['performance_drop_pct']
     
     # Summary

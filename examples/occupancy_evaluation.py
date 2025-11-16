@@ -8,12 +8,12 @@ and geometric distance metrics.
 
 import numpy as np
 from admetrics.occupancy import (
-    occupancy_iou,
-    mean_iou,
-    occupancy_precision_recall,
-    scene_completion,
-    chamfer_distance,
-    surface_distance,
+    calculate_occupancy_iou,
+    calculate_mean_iou,
+    calculate_occupancy_precision_recall,
+    calculate_scene_completion,
+    calculate_chamfer_distance,
+    calculate_surface_distance,
 )
 
 
@@ -37,14 +37,14 @@ def example_1_basic_iou():
     gt_occupancy[4:8, 4:8, 4:8] = 1  # Ground truth vehicle occupancy
     
     # Calculate IoU for vehicle class (class_id=1)
-    iou = occupancy_iou(pred_occupancy, gt_occupancy, class_id=1)
+    iou = calculate_occupancy_iou(pred_occupancy, gt_occupancy, class_id=1)
     
     print(f"Predicted vehicle volume: {np.sum(pred_occupancy == 1)} voxels")
     print(f"Ground truth vehicle volume: {np.sum(gt_occupancy == 1)} voxels")
     print(f"IoU for vehicle class: {iou:.4f}")
     
     # Calculate binary occupancy IoU (occupied vs free)
-    binary_iou = occupancy_iou(pred_occupancy, gt_occupancy, class_id=None)
+    binary_iou = calculate_occupancy_iou(pred_occupancy, gt_occupancy, class_id=None)
     print(f"Binary occupancy IoU: {binary_iou:.4f}")
 
 
@@ -76,7 +76,7 @@ def example_2_multi_class_miou():
     
     # Calculate mean IoU
     num_classes = 5
-    result = mean_iou(pred_occupancy, gt_occupancy, num_classes=num_classes)
+    result = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=num_classes)
     
     print(f"Overall mIoU: {result['mIoU']:.4f}")
     print(f"Number of valid classes: {result['valid_classes']}")
@@ -107,7 +107,7 @@ def example_3_precision_recall():
     # Add some false positives
     pred_occupancy[12:14, 12:14, 12:14] = 1
     
-    metrics = occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=1)
+    metrics = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=1)
     
     print(f"Precision: {metrics['precision']:.4f}")
     print(f"Recall: {metrics['recall']:.4f}")
@@ -139,7 +139,7 @@ def example_4_scene_completion():
     pred_occupancy[15:18, 15:18, 3:5] = 2  # Vehicle 2 (correct)
     # Missing pedestrian
     
-    sc_metrics = scene_completion(pred_occupancy, gt_occupancy, free_class=0)
+    sc_metrics = calculate_scene_completion(pred_occupancy, gt_occupancy, free_class=0)
     
     print("Scene Completion Metrics:")
     print(f"  SC IoU (occupied vs free): {sc_metrics['SC_IoU']:.4f}")
@@ -176,7 +176,7 @@ def example_5_chamfer_distance():
     print(f"Ground truth occupied voxels: {len(gt_points)}")
     
     # Calculate Chamfer Distance
-    cd_metrics = chamfer_distance(pred_points, gt_points, bidirectional=True)
+    cd_metrics = calculate_chamfer_distance(pred_points, gt_points, bidirectional=True)
     
     print(f"\nChamfer Distance Metrics:")
     print(f"  Bidirectional Chamfer Distance: {cd_metrics['chamfer_distance']:.4f} voxels")
@@ -197,7 +197,7 @@ def example_6_surface_distance():
     
     # Calculate surface distances with voxel size of 0.2 meters
     voxel_size = 0.2
-    sd_metrics = surface_distance(
+    sd_metrics = calculate_surface_distance(
         pred_occupancy, gt_occupancy, 
         voxel_size=voxel_size, 
         percentile=95
@@ -259,7 +259,7 @@ def example_7_realistic_scenario():
     
     # Calculate all metrics
     num_classes = 5
-    miou_result = mean_iou(pred_occupancy, gt_occupancy, num_classes=num_classes)
+    miou_result = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=num_classes)
     
     print("1. Mean IoU Metrics:")
     print(f"   Overall mIoU: {miou_result['mIoU']:.4f}")
@@ -271,28 +271,28 @@ def example_7_realistic_scenario():
             print(f"   {name}: {iou:.4f}")
     
     # Scene completion
-    sc = scene_completion(pred_occupancy, gt_occupancy, free_class=0)
+    sc = calculate_scene_completion(pred_occupancy, gt_occupancy, free_class=0)
     print(f"\n2. Scene Completion:")
     print(f"   SC IoU: {sc['SC_IoU']:.4f}")
     print(f"   SSC mIoU: {sc['SSC_mIoU']:.4f}")
     print(f"   Completion ratio: {sc['completion_ratio']:.4f}")
     
     # Per-class precision/recall for vehicles
-    vehicle_metrics = occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=2)
+    vehicle_metrics = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=2)
     print(f"\n3. Vehicle Detection Performance:")
     print(f"   Precision: {vehicle_metrics['precision']:.4f}")
     print(f"   Recall: {vehicle_metrics['recall']:.4f}")
     print(f"   F1-Score: {vehicle_metrics['f1']:.4f}")
     
     # Pedestrian detection
-    ped_metrics = occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=3)
+    ped_metrics = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=3)
     print(f"\n4. Pedestrian Detection Performance:")
     print(f"   Precision: {ped_metrics['precision']:.4f}")
     print(f"   Recall: {ped_metrics['recall']:.4f}")
     print(f"   F1-Score: {ped_metrics['f1']:.4f}")
     
     # Surface distance
-    sd = surface_distance(pred_occupancy, gt_occupancy, voxel_size=0.2, percentile=95)
+    sd = calculate_surface_distance(pred_occupancy, gt_occupancy, voxel_size=0.2, percentile=95)
     print(f"\n5. Surface Distance Metrics:")
     print(f"   Mean: {sd['mean_surface_distance']:.4f} m")
     print(f"   95th percentile: {sd['percentile_distance']:.4f} m")

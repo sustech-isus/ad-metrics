@@ -7,7 +7,7 @@ including NDS (nuScenes Detection Score).
 
 import numpy as np
 from admetrics import calculate_nds, calculate_map
-from admetrics.nds import calculate_nds_detailed, calculate_tp_metrics
+from admetrics.detection import calculate_nds_detailed, calculate_tp_metrics
 
 
 def create_nuscenes_sample_data():
@@ -282,7 +282,7 @@ def compare_detection_ranges():
     print("Performance by Distance Range")
     print("=" * 80)
     
-    from admetrics.distance import calculate_translation_error_bins
+    from admetrics.detection import calculate_translation_error_bins
     
     predictions, ground_truth = create_nuscenes_sample_data()
     

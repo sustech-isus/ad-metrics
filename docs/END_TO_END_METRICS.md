@@ -58,11 +58,11 @@ where:
 from admetrics.planning import l2_distance
 
 # Basic usage
-dist = l2_distance(predicted_traj, expert_traj)
+dist = calculate_l2_distance(predicted_traj, expert_traj)
 
 # Emphasize long-term planning (later timesteps weighted more)
 weights = np.linspace(1.0, 2.0, len(predicted_traj))
-dist_weighted = l2_distance(predicted_traj, expert_traj, weights=weights)
+dist_weighted = calculate_l2_distance(predicted_traj, expert_traj, weights=weights)
 ```
 
 **Interpretation**:
@@ -147,7 +147,7 @@ dynamic_obstacles = [
 
 obstacles = static_obstacles + dynamic_obstacles
 
-result = collision_rate(
+result = calculate_collision_rate(
     ego_trajectory,
     obstacles,
     vehicle_size=(4.5, 2.0),  # length x width in meters
@@ -186,7 +186,7 @@ print(f"First collision: {result['first_collision']}")
 ```python
 from admetrics.planning import progress_score
 
-result = progress_score(
+result = calculate_progress_score(
     executed_trajectory,
     reference_path,
     goal_threshold=2.0  # meters
@@ -224,7 +224,7 @@ waypoints = np.array([
     [300, 200]   # Waypoint 3
 ])
 
-result = route_completion(
+result = calculate_route_completion(
     executed_trajectory,
     waypoints,
     completion_radius=3.0  # meters
@@ -255,7 +255,7 @@ print(f"Waypoint status: {result['waypoint_status']}")
 ```python
 from admetrics.planning import lateral_deviation
 
-result = lateral_deviation(
+result = calculate_lateral_deviation(
     actual_trajectory,
     reference_centerline,
     lane_width=3.5  # meters (default)
@@ -289,7 +289,7 @@ from admetrics.planning import heading_error
 predicted_headings = np.array([0.0, 0.1, 0.2, 0.3])  # rad
 expert_headings = np.array([0.0, 0.12, 0.19, 0.31])  # rad
 
-result = heading_error(predicted_headings, expert_headings)
+result = calculate_heading_error(predicted_headings, expert_headings)
 
 print(f"Mean error: {result['mean_heading_error']:.4f} rad")
 print(f"Mean error: {result['mean_heading_error_deg']:.2f}°")
@@ -314,7 +314,7 @@ print(f"Max error: {result['max_heading_error']:.4f} rad")
 ```python
 from admetrics.planning import velocity_error
 
-result = velocity_error(predicted_velocities, expert_velocities)
+result = calculate_velocity_error(predicted_velocities, expert_velocities)
 
 print(f"Mean error: {result['mean_velocity_error']:.3f} m/s")
 print(f"RMSE: {result['rmse_velocity']:.3f} m/s")
@@ -336,7 +336,7 @@ print(f"Max error: {result['max_velocity_error']:.3f} m/s")
 ```python
 from admetrics.planning import comfort_metrics
 
-result = comfort_metrics(
+result = calculate_comfort_metrics(
     trajectory,
     timestamps,
     max_acceleration=2.0,  # m/s² threshold
@@ -389,7 +389,7 @@ Driving Score = 0.3 * Planning + 0.4 * Safety + 0.2 * Progress + 0.1 * Comfort
 ```python
 from admetrics.planning import driving_score
 
-result = driving_score(
+result = calculate_driving_score(
     predicted_trajectory,
     expert_trajectory,
     obstacles,
@@ -472,7 +472,7 @@ expert_actions = np.array([0.1, 0.3, 0.4, 0.15, 0.05])
 # Learned policy distribution
 learned_actions = np.array([0.12, 0.28, 0.38, 0.16, 0.06])
 
-kl_div = planning_kl_divergence(learned_actions, expert_actions)
+kl_div = calculate_planning_kl_divergence(learned_actions, expert_actions)
 
 print(f"KL divergence: {kl_div:.4f}")
 ```
@@ -511,7 +511,7 @@ print(f"KL divergence: {kl_div:.4f}")
 **Our Implementation**:
 ```python
 # nuPlan-style evaluation
-score = driving_score(
+score = calculate_driving_score(
     pred_traj, expert_traj, obstacles, ref_path, timestamps,
     weights={'planning': 0.25, 'safety': 0.40, 'progress': 0.20, 'comfort': 0.15}
 )
@@ -538,8 +538,8 @@ DS = Route Completion × Π (1 - infraction_penalty_i)
 **Our Implementation**:
 ```python
 # CARLA-style evaluation
-route_result = route_completion(traj, waypoints)
-collision_result = collision_rate(traj, obstacles)
+route_result = calculate_route_completion(traj, waypoints)
+collision_result = calculate_collision_rate(traj, obstacles)
 
 # Compute CARLA-like score
 carla_score = route_result['completion_rate'] * (
@@ -594,26 +594,26 @@ carla_score = route_result['completion_rate'] * (
 
 ```python
 # 1. Planning accuracy
-l2 = l2_distance(pred, expert)
+l2 = calculate_l2_distance(pred, expert)
 ade_fde = average_displacement_error_planning(pred, expert)
 
 # 2. Safety (critical)
-collision = collision_rate(pred, obstacles)
+collision = calculate_collision_rate(pred, obstacles)
 assert collision['collision_rate'] == 0.0, "Safety violation!"
 
 # 3. Task completion
-progress = progress_score(pred, ref_path)
-route = route_completion(pred, waypoints)
+progress = calculate_progress_score(pred, ref_path)
+route = calculate_route_completion(pred, waypoints)
 
 # 4. Control quality
-lateral = lateral_deviation(pred, ref_centerline)
-heading = heading_error(pred_headings, expert_headings)
+lateral = calculate_lateral_deviation(pred, ref_centerline)
+heading = calculate_heading_error(pred_headings, expert_headings)
 
 # 5. Comfort
-comfort = comfort_metrics(pred, timestamps)
+comfort = calculate_comfort_metrics(pred, timestamps)
 
 # 6. Overall assessment
-overall = driving_score(pred, expert, obstacles, ref_path, timestamps)
+overall = calculate_driving_score(pred, expert, obstacles, ref_path, timestamps)
 ```
 
 ### 3. Temporal Considerations
@@ -654,7 +654,7 @@ scores = []
 for seed in range(100):
     np.random.seed(seed)
     # ... run evaluation
-    result = driving_score(pred, expert, obstacles, ref_path, t)
+    result = calculate_driving_score(pred, expert, obstacles, ref_path, t)
     scores.append(result['driving_score'])
 
 print(f"Driving Score: {np.mean(scores):.1f} ± {np.std(scores):.1f}")
@@ -666,10 +666,10 @@ print(f"95% CI: [{np.percentile(scores, 2.5):.1f}, {np.percentile(scores, 97.5):
 **Component analysis**:
 ```python
 # Baseline model
-baseline_score = driving_score(baseline_pred, expert, obstacles, ref, t)
+baseline_score = calculate_driving_score(baseline_pred, expert, obstacles, ref, t)
 
 # Improved planning module
-improved_planning_score = driving_score(improved_pred, expert, obstacles, ref, t)
+improved_planning_score = calculate_driving_score(improved_pred, expert, obstacles, ref, t)
 
 # Compute improvement
 improvement = improved_planning_score['driving_score'] - baseline_score['driving_score']
@@ -704,7 +704,7 @@ l2 = np.mean(dists)
 # Batch processing
 results = []
 for traj in trajectories:
-    result = driving_score(traj, expert, obstacles, ref, t)
+    result = calculate_driving_score(traj, expert, obstacles, ref, t)
     results.append(result)
 ```
 
@@ -713,21 +713,21 @@ for traj in trajectories:
 **Debugging poor performance**:
 ```python
 # Identify failure modes
-result = driving_score(pred, expert, obstacles, ref, t)
+result = calculate_driving_score(pred, expert, obstacles, ref, t)
 
 if result['safety_score'] < 100:
     print("SAFETY FAILURE: Collision detected")
-    coll = collision_rate(pred, obstacles)
+    coll = calculate_collision_rate(pred, obstacles)
     print(f"  First collision at t={coll['first_collision']}")
 
 if result['progress_score'] < 50:
     print("PROGRESS FAILURE: Route incomplete")
-    prog = progress_score(pred, ref)
+    prog = calculate_progress_score(pred, ref)
     print(f"  Only {prog['progress_ratio']:.1%} completed")
 
 if result['comfort_score'] < 70:
     print("COMFORT FAILURE: Aggressive driving")
-    comfort = comfort_metrics(pred, t)
+    comfort = calculate_comfort_metrics(pred, t)
     print(f"  {comfort['comfort_violations']} violations")
 ```
 
@@ -776,22 +776,22 @@ def evaluate_end_to_end_model(model, test_scenarios):
         
         # Compute metrics
         results['l2_distances'].append(
-            l2_distance(pred_traj, expert_traj)
+            calculate_l2_distance(pred_traj, expert_traj)
         )
         
-        coll = collision_rate(pred_traj, obstacles)
+        coll = calculate_collision_rate(pred_traj, obstacles)
         results['collision_rates'].append(coll['collision_rate'])
         
-        prog = progress_score(pred_traj, ref_path)
+        prog = calculate_progress_score(pred_traj, ref_path)
         results['progress_scores'].append(prog['progress_ratio'])
         
-        lat = lateral_deviation(pred_traj, ref_path)
+        lat = calculate_lateral_deviation(pred_traj, ref_path)
         results['lateral_errors'].append(lat['mean_lateral_error'])
         
-        comfort = comfort_metrics(pred_traj, timestamps)
+        comfort = calculate_comfort_metrics(pred_traj, timestamps)
         results['comfort_scores'].append(comfort['comfort_rate'])
         
-        overall = driving_score(pred_traj, expert_traj, obstacles, ref_path, timestamps)
+        overall = calculate_driving_score(pred_traj, expert_traj, obstacles, ref_path, timestamps)
         results['driving_scores'].append(overall['driving_score'])
     
     # Aggregate results

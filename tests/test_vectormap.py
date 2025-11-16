@@ -5,14 +5,14 @@ Tests for vector map detection metrics.
 import numpy as np
 import pytest
 from admetrics.vectormap import (
-    chamfer_distance_polyline,
-    frechet_distance,
-    polyline_iou,
-    lane_detection_metrics,
-    topology_metrics,
-    endpoint_error,
-    direction_accuracy,
-    vectormap_ap
+    calculate_chamfer_distance_polyline,
+    calculate_frechet_distance,
+    calculate_polyline_iou,
+    calculate_lane_detection_metrics,
+    calculate_topology_metrics,
+    calculate_endpoint_error,
+    calculate_direction_accuracy,
+    calculate_vectormap_ap
 )
 
 
@@ -22,7 +22,7 @@ class TestChamferDistancePolyline:
     def test_identical_polylines(self):
         """Test with identical polylines."""
         polyline = np.array([[0, 0], [1, 0], [2, 0]])
-        result = chamfer_distance_polyline(polyline, polyline)
+        result = calculate_chamfer_distance_polyline(polyline, polyline)
         
         assert result['chamfer_distance'] == pytest.approx(0.0, abs=1e-6)
         assert result['chamfer_pred_to_gt'] == pytest.approx(0.0, abs=1e-6)
@@ -33,7 +33,7 @@ class TestChamferDistancePolyline:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 1], [10, 1]])
         
-        result = chamfer_distance_polyline(pred, gt)
+        result = calculate_chamfer_distance_polyline(pred, gt)
         assert result['chamfer_distance'] == pytest.approx(1.0, abs=0.01)
     
     def test_offset_polylines(self):
@@ -41,7 +41,7 @@ class TestChamferDistancePolyline:
         pred = np.array([[0, 0], [1, 0], [2, 0.1]])
         gt = np.array([[0, 0], [1, 0], [2, 0]])
         
-        result = chamfer_distance_polyline(pred, gt)
+        result = calculate_chamfer_distance_polyline(pred, gt)
         assert result['chamfer_distance'] < 0.1
     
     def test_empty_polylines(self):
@@ -49,7 +49,7 @@ class TestChamferDistancePolyline:
         pred = np.array([])
         gt = np.array([[0, 0], [1, 0]])
         
-        result = chamfer_distance_polyline(pred.reshape(0, 2), gt)
+        result = calculate_chamfer_distance_polyline(pred.reshape(0, 2), gt)
         assert result['chamfer_distance'] == float('inf')
         assert result['precision'] == 0.0
         assert result['recall'] == 0.0
@@ -59,7 +59,7 @@ class TestChamferDistancePolyline:
         pred = np.array([[0, 0], [1, 0], [2, 0], [3, 5]])  # Last point is outlier
         gt = np.array([[0, 0], [1, 0], [2, 0]])
         
-        result = chamfer_distance_polyline(pred, gt, max_distance=0.5)
+        result = calculate_chamfer_distance_polyline(pred, gt, max_distance=0.5)
         assert result['precision'] == pytest.approx(0.75, abs=0.01)  # 3/4 points match
         assert result['recall'] == pytest.approx(1.0, abs=0.01)  # All GT points match
     
@@ -68,7 +68,7 @@ class TestChamferDistancePolyline:
         pred = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0.1]])
         gt = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
         
-        result = chamfer_distance_polyline(pred, gt)
+        result = calculate_chamfer_distance_polyline(pred, gt)
         assert result['chamfer_distance'] < 0.1
 
 
@@ -78,7 +78,7 @@ class TestFrechetDistance:
     def test_identical_polylines(self):
         """Test with identical polylines."""
         polyline = np.array([[0, 0], [1, 0], [2, 0]])
-        dist = frechet_distance(polyline, polyline)
+        dist = calculate_frechet_distance(polyline, polyline)
         assert dist == pytest.approx(0.0, abs=1e-6)
     
     def test_parallel_polylines(self):
@@ -86,7 +86,7 @@ class TestFrechetDistance:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 1], [10, 1]])
         
-        dist = frechet_distance(pred, gt)
+        dist = calculate_frechet_distance(pred, gt)
         assert dist == pytest.approx(1.0, abs=0.01)
     
     def test_different_directions(self):
@@ -94,7 +94,7 @@ class TestFrechetDistance:
         pred = np.array([[0, 0], [1, 0], [2, 0]])
         gt = np.array([[2, 0], [1, 0], [0, 0]])  # Reversed
         
-        dist = frechet_distance(pred, gt)
+        dist = calculate_frechet_distance(pred, gt)
         assert dist >= 2.0  # Should be large due to reversed order
     
     def test_curved_polylines(self):
@@ -106,7 +106,7 @@ class TestFrechetDistance:
         # Slightly larger circle arc
         gt = np.column_stack([1.1 * np.cos(theta), 1.1 * np.sin(theta)])
         
-        dist = frechet_distance(pred, gt)
+        dist = calculate_frechet_distance(pred, gt)
         assert 0.0 < dist < 0.2
     
     def test_empty_polylines(self):
@@ -114,7 +114,7 @@ class TestFrechetDistance:
         pred = np.array([]).reshape(0, 2)
         gt = np.array([[0, 0], [1, 0]])
         
-        dist = frechet_distance(pred, gt)
+        dist = calculate_frechet_distance(pred, gt)
         assert dist == float('inf')
 
 
@@ -124,7 +124,7 @@ class TestPolylineIoU:
     def test_identical_polylines(self):
         """Test with identical polylines."""
         polyline = np.array([[0, 0], [10, 0]])
-        iou = polyline_iou(polyline, polyline, width=1.0)
+        iou = calculate_polyline_iou(polyline, polyline, width=1.0)
         assert iou == pytest.approx(1.0, abs=0.1)
     
     def test_parallel_close_polylines(self):
@@ -132,7 +132,7 @@ class TestPolylineIoU:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 0.5], [10, 0.5]])  # 0.5m apart
         
-        iou = polyline_iou(pred, gt, width=1.0)
+        iou = calculate_polyline_iou(pred, gt, width=1.0)
         assert iou > 0.5  # Should have good overlap
     
     def test_parallel_far_polylines(self):
@@ -140,7 +140,7 @@ class TestPolylineIoU:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 5], [10, 5]])  # 5m apart
         
-        iou = polyline_iou(pred, gt, width=1.0)
+        iou = calculate_polyline_iou(pred, gt, width=1.0)
         assert iou < 0.1  # Should have minimal overlap
     
     def test_perpendicular_polylines(self):
@@ -148,7 +148,7 @@ class TestPolylineIoU:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[5, -5], [5, 5]])
         
-        iou = polyline_iou(pred, gt, width=1.0)
+        iou = calculate_polyline_iou(pred, gt, width=1.0)
         assert 0.0 < iou < 0.5  # Some overlap at intersection
     
     def test_short_polylines(self):
@@ -156,7 +156,7 @@ class TestPolylineIoU:
         pred = np.array([[0, 0], [0.1, 0]])
         gt = np.array([[0, 0], [0.1, 0]])
         
-        iou = polyline_iou(pred, gt, width=1.0)
+        iou = calculate_polyline_iou(pred, gt, width=1.0)
         assert iou > 0.5
 
 
@@ -174,7 +174,7 @@ class TestLaneDetectionMetrics:
             np.array([[0, 3.1], [10, 3.1]])
         ]
         
-        metrics = lane_detection_metrics(pred, gt, distance_threshold=1.5)
+        metrics = calculate_lane_detection_metrics(pred, gt, distance_threshold=1.5)
         assert metrics['precision'] == pytest.approx(1.0, abs=0.01)
         assert metrics['recall'] == pytest.approx(1.0, abs=0.01)
         assert metrics['f1_score'] == pytest.approx(1.0, abs=0.01)
@@ -192,7 +192,7 @@ class TestLaneDetectionMetrics:
             np.array([[0, 3], [10, 3]])
         ]
         
-        metrics = lane_detection_metrics(pred, gt, distance_threshold=1.5)
+        metrics = calculate_lane_detection_metrics(pred, gt, distance_threshold=1.5)
         assert metrics['precision'] == pytest.approx(1.0, abs=0.01)
         assert metrics['recall'] == pytest.approx(0.5, abs=0.01)
         assert metrics['tp'] == 1
@@ -211,7 +211,7 @@ class TestLaneDetectionMetrics:
             np.array([[0, 3.1], [10, 3.1]])
         ]
         
-        metrics = lane_detection_metrics(pred, gt, distance_threshold=1.5)
+        metrics = calculate_lane_detection_metrics(pred, gt, distance_threshold=1.5)
         assert metrics['precision'] == pytest.approx(2/3, abs=0.01)
         assert metrics['recall'] == pytest.approx(1.0, abs=0.01)
         assert metrics['tp'] == 2
@@ -223,7 +223,7 @@ class TestLaneDetectionMetrics:
         pred = []
         gt = [np.array([[0, 0], [10, 0]])]
         
-        metrics = lane_detection_metrics(pred, gt)
+        metrics = calculate_lane_detection_metrics(pred, gt)
         assert metrics['precision'] == pytest.approx(1.0)
         assert metrics['recall'] == pytest.approx(0.0)
         assert metrics['tp'] == 0
@@ -234,14 +234,14 @@ class TestLaneDetectionMetrics:
         pred = [np.array([[0, 0], [10, 0]])]
         gt = []
         
-        metrics = lane_detection_metrics(pred, gt)
+        metrics = calculate_lane_detection_metrics(pred, gt)
         assert metrics['precision'] == pytest.approx(0.0)
         assert metrics['recall'] == pytest.approx(1.0)
         assert metrics['fp'] == 1
     
     def test_both_empty(self):
         """Test with both empty."""
-        metrics = lane_detection_metrics([], [])
+        metrics = calculate_lane_detection_metrics([], [])
         assert metrics['precision'] == pytest.approx(1.0)
         assert metrics['recall'] == pytest.approx(1.0)
         assert metrics['f1_score'] == pytest.approx(1.0)
@@ -262,7 +262,7 @@ class TestTopologyMetrics:
         }
         lane_matches = {0: 0, 1: 1, 2: 2, 3: 3}
         
-        metrics = topology_metrics(pred_topo, gt_topo, lane_matches)
+        metrics = calculate_topology_metrics(pred_topo, gt_topo, lane_matches)
         assert metrics['topology_precision'] == pytest.approx(1.0)
         assert metrics['topology_recall'] == pytest.approx(1.0)
         assert metrics['topology_f1'] == pytest.approx(1.0)
@@ -279,7 +279,7 @@ class TestTopologyMetrics:
         }
         lane_matches = {0: 0, 1: 1, 2: 2, 3: 3}
         
-        metrics = topology_metrics(pred_topo, gt_topo, lane_matches)
+        metrics = calculate_topology_metrics(pred_topo, gt_topo, lane_matches)
         assert metrics['topology_precision'] == pytest.approx(1.0)  # All pred correct
         assert metrics['topology_recall'] == pytest.approx(3/4)  # 3/4 GT connections found
         assert metrics['correct_connections'] == 3
@@ -296,13 +296,13 @@ class TestTopologyMetrics:
         }
         lane_matches = {5: 99, 6: 98}  # Don't match GT
         
-        metrics = topology_metrics(pred_topo, gt_topo, lane_matches)
+        metrics = calculate_topology_metrics(pred_topo, gt_topo, lane_matches)
         assert metrics['topology_precision'] == pytest.approx(0.0)
         assert metrics['topology_recall'] == pytest.approx(0.0)
     
     def test_empty_topology(self):
         """Test with empty topology."""
-        metrics = topology_metrics({}, {}, {})
+        metrics = calculate_topology_metrics({}, {}, {})
         assert metrics['topology_precision'] == pytest.approx(0.0)
         assert metrics['topology_recall'] == pytest.approx(0.0)
 
@@ -313,7 +313,7 @@ class TestEndpointError:
     def test_identical_endpoints(self):
         """Test with identical endpoints."""
         polyline = np.array([[0, 0], [5, 0], [10, 0]])
-        errors = endpoint_error(polyline, polyline)
+        errors = calculate_endpoint_error(polyline, polyline)
         
         assert errors['start_error'] == pytest.approx(0.0, abs=1e-6)
         assert errors['end_error'] == pytest.approx(0.0, abs=1e-6)
@@ -324,7 +324,7 @@ class TestEndpointError:
         pred = np.array([[0, 0], [5, 0], [10, 0]])
         gt = np.array([[0.1, 0], [5, 0], [10.1, 0]])
         
-        errors = endpoint_error(pred, gt)
+        errors = calculate_endpoint_error(pred, gt)
         assert errors['start_error'] == pytest.approx(0.1, abs=0.01)
         assert errors['end_error'] == pytest.approx(0.1, abs=0.01)
         assert errors['mean_endpoint_error'] == pytest.approx(0.1, abs=0.01)
@@ -334,7 +334,7 @@ class TestEndpointError:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 5], [10, 5]])
         
-        errors = endpoint_error(pred, gt)
+        errors = calculate_endpoint_error(pred, gt)
         assert errors['start_error'] == pytest.approx(5.0, abs=0.1)
         assert errors['end_error'] == pytest.approx(5.0, abs=0.1)
     
@@ -343,7 +343,7 @@ class TestEndpointError:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[0, 1], [10, 3]])
         
-        errors = endpoint_error(pred, gt)
+        errors = calculate_endpoint_error(pred, gt)
         assert errors['start_error'] == pytest.approx(1.0, abs=0.1)
         assert errors['end_error'] == pytest.approx(3.0, abs=0.1)
         assert errors['mean_endpoint_error'] == pytest.approx(2.0, abs=0.1)
@@ -353,7 +353,7 @@ class TestEndpointError:
         pred = np.array([]).reshape(0, 2)
         gt = np.array([[0, 0], [10, 0]])
         
-        errors = endpoint_error(pred, gt)
+        errors = calculate_endpoint_error(pred, gt)
         assert errors['start_error'] == float('inf')
 
 
@@ -363,7 +363,7 @@ class TestDirectionAccuracy:
     def test_identical_directions(self):
         """Test with identical directions."""
         polyline = np.array([[0, 0], [10, 0]])
-        acc = direction_accuracy(polyline, polyline)
+        acc = calculate_direction_accuracy(polyline, polyline)
         
         assert acc['mean_direction_error'] == pytest.approx(0.0, abs=0.01)
         assert acc['mean_direction_error_deg'] == pytest.approx(0.0, abs=0.01)
@@ -374,7 +374,7 @@ class TestDirectionAccuracy:
         pred = np.array([[0, 0], [10, 1]])  # Slight upward angle
         gt = np.array([[0, 0], [10, 0]])    # Horizontal
         
-        acc = direction_accuracy(pred, gt)
+        acc = calculate_direction_accuracy(pred, gt)
         assert acc['mean_direction_error_deg'] < 10  # Should be small
         assert acc['direction_accuracy'] > 0.9
     
@@ -383,7 +383,7 @@ class TestDirectionAccuracy:
         pred = np.array([[0, 0], [10, 0]])  # Horizontal
         gt = np.array([[0, 0], [0, 10]])    # Vertical
         
-        acc = direction_accuracy(pred, gt)
+        acc = calculate_direction_accuracy(pred, gt)
         assert acc['mean_direction_error_deg'] == pytest.approx(90, abs=1)
         assert acc['direction_accuracy'] == pytest.approx(0.0)
     
@@ -392,7 +392,7 @@ class TestDirectionAccuracy:
         pred = np.array([[0, 0], [10, 0]])
         gt = np.array([[10, 0], [0, 0]])  # Reversed
         
-        acc = direction_accuracy(pred, gt)
+        acc = calculate_direction_accuracy(pred, gt)
         assert acc['mean_direction_error_deg'] == pytest.approx(180, abs=1)
         assert acc['direction_accuracy'] == pytest.approx(0.0)
     
@@ -403,7 +403,7 @@ class TestDirectionAccuracy:
         pred = np.column_stack([np.cos(theta), np.sin(theta)])
         gt = np.column_stack([np.cos(theta), np.sin(theta)])
         
-        acc = direction_accuracy(pred, gt)
+        acc = calculate_direction_accuracy(pred, gt)
         assert acc['mean_direction_error_deg'] < 5
         assert acc['direction_accuracy'] > 0.95
     
@@ -412,7 +412,7 @@ class TestDirectionAccuracy:
         pred = np.array([[0, 0]])  # Single point
         gt = np.array([[0, 0], [1, 0]])
         
-        acc = direction_accuracy(pred, gt)
+        acc = calculate_direction_accuracy(pred, gt)
         assert acc['mean_direction_error'] == float('inf')
 
 
@@ -430,7 +430,7 @@ class TestVectormapAP:
             {'polyline': np.array([[0, 3.1], [10, 3.1]])}
         ]
         
-        ap = vectormap_ap(pred, gt, distance_thresholds=[1.0])
+        ap = calculate_vectormap_ap(pred, gt, distance_thresholds=[1.0])
         assert ap['ap_1.0'] > 0.9
         assert ap['map'] > 0.9
     
@@ -446,7 +446,7 @@ class TestVectormapAP:
             {'polyline': np.array([[0, 3.1], [10, 3.1]])}
         ]
         
-        ap = vectormap_ap(pred, gt, distance_thresholds=[1.0])
+        ap = calculate_vectormap_ap(pred, gt, distance_thresholds=[1.0])
         assert 0.5 < ap['ap_1.0'] < 1.0  # Lower due to FP
     
     def test_with_false_negatives(self):
@@ -459,7 +459,7 @@ class TestVectormapAP:
             {'polyline': np.array([[0, 3], [10, 3]])}  # Missed
         ]
         
-        ap = vectormap_ap(pred, gt, distance_thresholds=[1.0])
+        ap = calculate_vectormap_ap(pred, gt, distance_thresholds=[1.0])
         assert 0.3 < ap['ap_1.0'] < 0.7  # Lower due to FN
     
     def test_multiple_thresholds(self):
@@ -471,7 +471,7 @@ class TestVectormapAP:
             {'polyline': np.array([[0, 0.7], [10, 0.7]])}  # 0.7m offset
         ]
         
-        ap = vectormap_ap(pred, gt, distance_thresholds=[0.5, 1.0, 1.5])
+        ap = calculate_vectormap_ap(pred, gt, distance_thresholds=[0.5, 1.0, 1.5])
         assert ap['ap_0.5'] == pytest.approx(0.0)  # Too strict
         assert ap['ap_1.0'] > 0.9  # Should match
         assert ap['ap_1.5'] > 0.9  # Should match
@@ -487,7 +487,7 @@ class TestVectormapAP:
             {'polyline': np.array([[0, 0.1], [10, 0.1]])}
         ]
         
-        ap = vectormap_ap(pred, gt, distance_thresholds=[1.0])
+        ap = calculate_vectormap_ap(pred, gt, distance_thresholds=[1.0])
         assert ap['ap_1.0'] > 0.5  # Should get partial credit
     
     def test_empty_predictions(self):
@@ -495,7 +495,7 @@ class TestVectormapAP:
         pred = []
         gt = [{'polyline': np.array([[0, 0], [10, 0]])}]
         
-        ap = vectormap_ap(pred, gt)
+        ap = calculate_vectormap_ap(pred, gt)
         assert ap['map'] == pytest.approx(0.0)
     
     def test_empty_ground_truth(self):
@@ -503,7 +503,7 @@ class TestVectormapAP:
         pred = [{'polyline': np.array([[0, 0], [10, 0]]), 'score': 0.9}]
         gt = []
         
-        ap = vectormap_ap(pred, gt)
+        ap = calculate_vectormap_ap(pred, gt)
         # All predictions are false positives
         assert ap['map'] == pytest.approx(0.0)
     
@@ -519,7 +519,7 @@ class TestVectormapAP:
         ]
         scores = [0.9, 0.8]
         
-        ap = vectormap_ap(pred, gt, confidence_scores=scores)
+        ap = calculate_vectormap_ap(pred, gt, confidence_scores=scores)
         assert ap['map'] > 0.9
 
 
