@@ -9,7 +9,7 @@ Complete API documentation for the admetrics library - a comprehensive metrics s
 - [Trajectory Prediction Metrics (10)](#trajectory-prediction-metrics)
 - [Localization Metrics (8)](#localization-metrics)
 - [Occupancy Metrics (6)](#occupancy-metrics)
-- [Planning Metrics (11)](#planning-metrics)
+- [Planning Metrics (20)](#planning-metrics)
 - [Vector Map Metrics (8)](#vector-map-metrics)
 - [Simulation Quality Metrics (7)](#simulation-quality-metrics)
 - [Utility Functions (9)](#utility-functions)
@@ -939,6 +939,15 @@ Calculate L2 distance between predicted and expert trajectories.
 **Returns:**
 - `float`: Average L2 distance
 
+**Example:**
+```python
+from admetrics.planning import calculate_l2_distance
+
+pred = np.array([[0, 0], [1, 0], [2, 0]])
+expert = np.array([[0, 0], [1, 0.5], [2, 0.5]])
+dist = calculate_l2_distance(pred, expert)
+```
+
 ---
 
 #### `calculate_collision_rate(trajectory, obstacles, vehicle_size=(4.5, 2.0), obstacle_sizes=None, safety_margin=0.0)`
@@ -947,30 +956,67 @@ Calculate collision rate for planned trajectory.
 
 **Parameters:**
 - `trajectory` (np.ndarray): Ego trajectory (T, 2)
-- `obstacles` (List[np.ndarray]): Obstacle trajectories
-- `vehicle_size` (Tuple): Ego (length, width)
+- `obstacles` (List[np.ndarray]): List of obstacle trajectories
+- `vehicle_size` (Tuple): Ego vehicle (length, width) in meters
 - `obstacle_sizes` (List[Tuple], optional): Obstacle sizes
-- `safety_margin` (float): Safety buffer
+- `safety_margin` (float): Safety buffer in meters
 
 **Returns:**
-- `Dict`: Dictionary with collision rate and details
+- `Dict`: Dictionary containing:
+  - `'collision_rate'`: Fraction of timesteps with collisions
+  - `'num_collisions'`: Total number of collisions
+  - `'first_collision'`: Index of first collision (or None)
+
+---
+
+#### `calculate_collision_with_fault_classification(ego_trajectory, ego_velocities, ego_headings, other_vehicles, vehicle_size=(4.5, 2.0), collision_threshold=0.5)`
+
+**NEW**: Calculate collisions with at-fault classification (nuPlan/tuplan_garage style).
+
+**Parameters:**
+- `ego_trajectory` (np.ndarray): Ego trajectory positions (T, 2)
+- `ego_velocities` (np.ndarray): Ego velocities (T,) in m/s
+- `ego_headings` (np.ndarray): Ego heading angles (T,) in radians
+- `other_vehicles` (List[np.ndarray]): Other vehicle trajectories
+- `vehicle_size` (Tuple): Vehicle (length, width)
+- `collision_threshold` (float): Collision distance threshold
+
+**Returns:**
+- `Dict`: Dictionary containing:
+  - `'total_collisions'`: Total collision count
+  - `'at_fault_collisions'`: Number of at-fault collisions
+  - `'collision_rate'`: Fraction of timesteps with collisions
+  - `'collision_types'`: Counter of collision types
+    - `'active_front'`: Ego rear-ends another vehicle (at-fault)
+    - `'stopped_track'`: Ego hits stopped/slow object (at-fault)
+    - `'active_lateral'`: Ego sideswipes another vehicle (at-fault)
+    - `'active_rear'`: Ego is rear-ended (not at-fault)
+    - `'passive'`: Other passive collisions (not at-fault)
+
+**Example:**
+```python
+result = calculate_collision_with_fault_classification(
+    ego_traj, ego_vels, ego_heads, other_vehicles
+)
+print(f"At-fault: {result['at_fault_collisions']}")
+```
 
 ---
 
 #### `calculate_progress_score(trajectory, route, distance_threshold=2.0)`
 
-Calculate progress along route.
+Calculate progress along planned route.
 
 **Parameters:**
-- `trajectory` (np.ndarray): Trajectory (T, 2)
+- `trajectory` (np.ndarray): Ego trajectory (T, 2)
 - `route` (np.ndarray): Route waypoints (N, 2)
-- `distance_threshold` (float): Distance threshold
+- `distance_threshold` (float): Threshold for progress detection
 
 **Returns:**
 - `Dict`: Dictionary with:
-  - `'progress_score'`: Progress score
-  - `'distance_traveled'`: Distance traveled
-  - `'route_completion'`: Route completion ratio
+  - `'progress_score'`: Normalized progress score [0, 1]
+  - `'distance_traveled'`: Total distance traveled
+  - `'progress_ratio'`: Ratio of route completed
 
 ---
 
@@ -980,27 +1026,42 @@ Calculate route completion percentage.
 
 **Parameters:**
 - `trajectory` (np.ndarray): Trajectory (T, 2)
-- `route_waypoints` (List[np.ndarray]): Route waypoints
-- `completion_threshold` (float): Completion threshold
+- `route_waypoints` (List[np.ndarray]): Ordered route waypoints
+- `completion_threshold` (float): Distance threshold for waypoint completion
 
 **Returns:**
 - `Dict`: Dictionary with:
-  - `'completion_rate'`: Completion rate
-  - `'completed_waypoints'`: Number completed
-  - `'total_waypoints'`: Total waypoints
+  - `'completion_rate'`: Completion rate [0, 1]
+  - `'completed_waypoints'`: Number of completed waypoints
+  - `'total_waypoints'`: Total number of waypoints
 
 ---
 
-#### `average_displacement_error_planning(predicted_trajectory, expert_trajectory)`
+#### `average_displacement_error_planning(predicted_trajectory, expert_trajectory, horizons=None)`
 
-Calculate ADE for planning.
+Calculate Average Displacement Error (ADE) and Final Displacement Error (FDE) for planning.
 
 **Parameters:**
-- `predicted_trajectory` (np.ndarray): Predicted (T, 2)
-- `expert_trajectory` (np.ndarray): Expert (T, 2)
+- `predicted_trajectory` (np.ndarray): Predicted trajectory (T, 2)
+- `expert_trajectory` (np.ndarray): Expert trajectory (T, 2)
+- `horizons` (List[int], optional): Specific time horizons for multi-horizon evaluation
 
 **Returns:**
-- `float`: ADE in meters
+- `Dict`: Dictionary with:
+  - `'ADE'`: Average displacement error over full trajectory
+  - `'FDE'`: Final displacement error
+  - `'ADE_H'`: ADE at horizon H (if horizons specified)
+  - `'FDE_H'`: FDE at horizon H (if horizons specified)
+
+**Example:**
+```python
+# Multi-horizon evaluation (nuPlan/Waymo style)
+result = average_displacement_error_planning(
+    pred, expert, horizons=[10, 30, 50, 80]  # 1s, 3s, 5s, 8s at 10Hz
+)
+print(f"1s ADE: {result['ADE_10']:.3f}m")
+print(f"8s FDE: {result['FDE_80']:.3f}m")
+```
 
 ---
 
@@ -1013,69 +1074,125 @@ Calculate lateral deviation from reference path.
 - `reference_path` (np.ndarray): Reference path (N, 2)
 
 **Returns:**
-- `Dict`: Dictionary with 'mean', 'std', 'max'
+- `Dict`: Dictionary with:
+  - `'mean_deviation'`: Mean lateral deviation
+  - `'std_deviation'`: Standard deviation
+  - `'max_deviation'`: Maximum deviation
 
 ---
 
 #### `calculate_heading_error(predicted_headings, reference_headings)`
 
-Calculate heading angle error.
+Calculate heading angle error with proper angle wrapping.
 
 **Parameters:**
-- `predicted_headings` (np.ndarray): Predicted headings (T,)
-- `reference_headings` (np.ndarray): Reference headings (T,)
+- `predicted_headings` (np.ndarray): Predicted headings in radians (T,)
+- `reference_headings` (np.ndarray): Reference headings in radians (T,)
 
 **Returns:**
-- `Dict`: Dictionary with 'mean', 'std', 'max'
+- `Dict`: Dictionary with:
+  - `'mean_error'`: Mean heading error
+  - `'std_error'`: Standard deviation
+  - `'max_error'`: Maximum error
 
 ---
 
 #### `calculate_velocity_error(predicted_velocities, reference_velocities)`
 
-Calculate velocity error.
+Calculate velocity error metrics.
 
 **Parameters:**
 - `predicted_velocities` (np.ndarray): Predicted velocities (T,)
 - `reference_velocities` (np.ndarray): Reference velocities (T,)
 
 **Returns:**
-- `Dict`: Dictionary with 'mean', 'std', 'max', 'rmse'
+- `Dict`: Dictionary with:
+  - `'mean_error'`: Mean velocity error
+  - `'std_error'`: Standard deviation
+  - `'max_error'`: Maximum error
+  - `'rmse'`: Root mean square error
 
 ---
 
-#### `calculate_comfort_metrics(trajectory, dt=0.1)`
+#### `calculate_comfort_metrics(trajectory, timestamps, max_longitudinal_accel=4.0, max_lateral_accel=4.0, max_jerk=4.0, max_yaw_rate=1.0, max_yaw_accel=1.0, include_lateral=True, use_smoothing=False, smoothing_window=15, smoothing_order=2)`
 
-Calculate comfort metrics (acceleration, jerk).
+**UPDATED**: Calculate comprehensive comfort metrics with optional Savitzky-Golay smoothing (nuPlan/tuplan_garage style).
 
 **Parameters:**
-- `trajectory` (np.ndarray): Trajectory (T, 2) or (T, 3)
-- `dt` (float): Time step in seconds
+- `trajectory` (np.ndarray): Trajectory positions (T, 2) for [x, y]
+- `timestamps` (np.ndarray): Time at each position (T,)
+- `max_longitudinal_accel` (float): Comfort threshold for longitudinal acceleration (m/s²), default 4.0
+- `max_lateral_accel` (float): Comfort threshold for lateral acceleration (m/s²), default 4.0
+- `max_jerk` (float): Comfort threshold for jerk (m/s³), default 4.0
+- `max_yaw_rate` (float): Comfort threshold for yaw rate (rad/s), default 1.0
+- `max_yaw_accel` (float): Comfort threshold for yaw acceleration (rad/s²), default 1.0
+- `include_lateral` (bool): Whether to compute lateral metrics, default True
+- `use_smoothing` (bool): Whether to use Savitzky-Golay filter for smoother derivatives, default False
+- `smoothing_window` (int): Window length for filter (must be odd), default 15
+- `smoothing_order` (int): Polynomial order for filter, default 2
 
 **Returns:**
-- `Dict`: Dictionary with:
-  - `'mean_accel'`: Mean acceleration
-  - `'max_accel'`: Max acceleration
-  - `'mean_jerk'`: Mean jerk
-  - `'max_jerk'`: Max jerk
-  - `'lateral_accel'`: Lateral acceleration
+- `Dict`: Dictionary containing:
+  - `'mean_longitudinal_accel'`: Average longitudinal acceleration magnitude
+  - `'max_longitudinal_accel'`: Maximum longitudinal acceleration
+  - `'mean_lateral_accel'`: Average lateral acceleration magnitude (if include_lateral)
+  - `'max_lateral_accel'`: Maximum lateral acceleration (if include_lateral)
+  - `'mean_jerk'`: Average jerk magnitude
+  - `'max_jerk'`: Maximum jerk
+  - `'mean_yaw_rate'`: Average yaw rate (if include_lateral)
+  - `'max_yaw_rate'`: Maximum yaw rate (if include_lateral)
+  - `'mean_yaw_accel'`: Average yaw acceleration (if include_lateral)
+  - `'max_yaw_accel'`: Maximum yaw acceleration (if include_lateral)
+  - `'comfort_violations'`: Number of timesteps exceeding thresholds
+  - `'comfort_rate'`: Fraction of time within comfort limits [0, 1]
+
+**Example:**
+```python
+# Standard comfort metrics
+result = calculate_comfort_metrics(traj, timestamps)
+print(f"Comfort rate: {result['comfort_rate']*100:.1f}%")
+
+# With smoothing for noisy GPS data
+result = calculate_comfort_metrics(
+    traj, timestamps, 
+    use_smoothing=True,
+    smoothing_window=15
+)
+```
 
 ---
 
-#### `calculate_driving_score(trajectory, expert_trajectory, obstacles, route, weights=None)`
+#### `calculate_driving_score(predicted_trajectory, expert_trajectory, timestamps, obstacles=None, route=None, weights=None, mode='default')`
 
-Calculate composite driving score.
+**UPDATED**: Calculate composite driving score with optional nuPlan mode.
 
 **Parameters:**
-- `trajectory` (np.ndarray): Predicted trajectory (T, 2)
+- `predicted_trajectory` (np.ndarray): Predicted trajectory (T, 2)
 - `expert_trajectory` (np.ndarray): Expert trajectory (T, 2)
-- `obstacles` (List[np.ndarray]): Obstacles
-- `route` (np.ndarray): Route waypoints
-- `weights` (dict, optional): Component weights
+- `timestamps` (np.ndarray): Timestamps (T,)
+- `obstacles` (List[np.ndarray], optional): Obstacles for safety scoring
+- `route` (np.ndarray, optional): Route waypoints for progress scoring
+- `weights` (Dict, optional): Component weights (default: equal weights)
+- `mode` (str): Scoring mode - 'default' or 'nuplan'
 
 **Returns:**
 - `Dict`: Dictionary with:
-  - `'driving_score'`: Composite score
-  - `'l2_score'`, `'collision_score'`, `'progress_score'`, `'comfort_score'`: Components
+  - `'driving_score'`: Overall composite score [0, 100]
+  - `'planning_accuracy'`: Trajectory following accuracy
+  - `'safety_score'`: Collision avoidance score
+  - `'progress_score'`: Route progress score
+  - `'comfort_score'`: Comfort/smoothness score
+  - Additional nuPlan-specific scores if mode='nuplan'
+
+**Example:**
+```python
+# nuPlan evaluation mode
+result = calculate_driving_score(
+    pred_traj, expert_traj, timestamps,
+    obstacles=obstacles,
+    mode='nuplan'
+)
+```
 
 ---
 
@@ -1088,7 +1205,207 @@ Calculate KL divergence between trajectory distributions.
 - `expert_distribution` (np.ndarray): Expert distribution
 
 **Returns:**
-- `float`: KL divergence
+- `float`: KL divergence value
+
+---
+
+#### `calculate_time_to_collision(ego_trajectory, ego_velocity, obstacles, vehicle_size=(4.5, 2.0))`
+
+Calculate basic Time-to-Collision (TTC) metric.
+
+**Parameters:**
+- `ego_trajectory` (np.ndarray): Ego trajectory (T, 2)
+- `ego_velocity` (np.ndarray): Ego velocities (T,)
+- `obstacles` (List[np.ndarray]): Obstacle trajectories
+- `vehicle_size` (Tuple): Vehicle dimensions
+
+**Returns:**
+- `Dict`: Dictionary with:
+  - `'min_ttc'`: Minimum TTC across all timesteps
+  - `'ttc_violations'`: Count of dangerous TTC situations
+
+---
+
+#### `calculate_time_to_collision_enhanced(ego_trajectory, ego_velocities, ego_headings, timestamps, other_vehicles, projection_horizon=1.0, projection_dt=0.3, ttc_threshold=3.0, vehicle_size=(4.5, 2.0), stopped_velocity_threshold=0.005)`
+
+**NEW**: Calculate enhanced TTC with forward trajectory projection (nuPlan style).
+
+**Parameters:**
+- `ego_trajectory` (np.ndarray): Ego positions (T, 2)
+- `ego_velocities` (np.ndarray): Ego velocities (T,) in m/s
+- `ego_headings` (np.ndarray): Ego heading angles (T,) in radians
+- `timestamps` (np.ndarray): Timestamps (T,)
+- `other_vehicles` (List[np.ndarray]): Other vehicle trajectories
+- `projection_horizon` (float): Projection time horizon in seconds, default 1.0
+- `projection_dt` (float): Projection time step in seconds, default 0.3
+- `ttc_threshold` (float): TTC threshold for violations in seconds, default 3.0
+- `vehicle_size` (Tuple): Vehicle (length, width)
+- `stopped_velocity_threshold` (float): Velocity threshold for stopped vehicles
+
+**Returns:**
+- `Dict`: Dictionary with:
+  - `'min_ttc'`: Minimum TTC across all timesteps and projections
+  - `'mean_ttc'`: Mean TTC value
+  - `'ttc_violations'`: Number of timesteps with TTC < threshold
+  - `'ttc_profile'`: Full TTC time series
+
+**Example:**
+```python
+result = calculate_time_to_collision_enhanced(
+    ego_traj, ego_vels, ego_heads, timestamps, other_vehicles,
+    projection_horizon=1.0,
+    projection_dt=0.3
+)
+```
+
+---
+
+#### `calculate_lane_invasion_rate(trajectory, lane_boundaries, vehicle_width=2.0)`
+
+Calculate lane invasion/departure rate.
+
+**Parameters:**
+- `trajectory` (np.ndarray): Ego trajectory (T, 2)
+- `lane_boundaries` (Tuple[np.ndarray, np.ndarray]): Left and right lane boundaries
+- `vehicle_width` (float): Vehicle width
+
+**Returns:**
+- `Dict`: Dictionary with:
+  - `'invasion_rate'`: Fraction of time outside lane
+  - `'num_invasions'`: Count of invasions
+  - `'max_invasion_distance'`: Maximum invasion distance
+
+---
+
+#### `calculate_collision_severity(trajectory, obstacles, vehicle_size=(4.5, 2.0), velocities=None)`
+
+Calculate collision severity based on impact dynamics.
+
+**Parameters:**
+- `trajectory` (np.ndarray): Ego trajectory (T, 2)
+- `obstacles` (List[np.ndarray]): Obstacle trajectories
+- `vehicle_size` (Tuple): Vehicle dimensions
+- `velocities` (np.ndarray, optional): Ego velocities for impact severity
+
+**Returns:**
+- `Dict`: Dictionary with:
+  - `'max_severity'`: Maximum collision severity
+  - `'severities'`: List of all collision severities
+
+---
+
+#### `check_kinematic_feasibility(trajectory, timestamps, max_velocity=15.0, max_acceleration=4.0, max_lateral_accel=4.0, max_yaw_rate=0.5)`
+
+Check if trajectory is kinematically feasible.
+
+**Parameters:**
+- `trajectory` (np.ndarray): Trajectory (T, 2)
+- `timestamps` (np.ndarray): Timestamps (T,)
+- `max_velocity` (float): Maximum velocity (m/s)
+- `max_acceleration` (float): Maximum acceleration (m/s²)
+- `max_lateral_accel` (float): Maximum lateral acceleration (m/s²)
+- `max_yaw_rate` (float): Maximum yaw rate (rad/s)
+
+**Returns:**
+- `Dict`: Dictionary with:
+  - `'feasible'`: Boolean feasibility status
+  - `'max_velocity'`: Maximum velocity encountered
+  - `'max_acceleration'`: Maximum acceleration
+  - `'max_lateral_accel'`: Maximum lateral acceleration
+  - `'max_yaw_rate'`: Maximum yaw rate
+  - `'violations'`: List of constraint violations
+
+---
+
+#### `calculate_distance_to_road_edge(trajectory, drivable_area=None, lane_centerline=None, lane_width=None, vehicle_width=2.0)`
+
+**NEW**: Calculate signed distance to drivable area boundaries (Waymo Sim Agents style).
+
+**Parameters:**
+- `trajectory` (np.ndarray): Ego trajectory positions (T, 2)
+- `drivable_area` (shapely.Polygon, optional): Drivable area polygon (preferred method)
+- `lane_centerline` (np.ndarray, optional): Lane centerline (N, 2) - fallback method
+- `lane_width` (float, optional): Lane width for centerline method
+- `vehicle_width` (float): Vehicle width
+
+**Returns:**
+- `Dict`: Dictionary containing:
+  - `'mean_distance'`: Mean signed distance (negative = inside, positive = outside)
+  - `'min_distance'`: Minimum distance to edge
+  - `'max_violation'`: Maximum drivable area violation distance
+  - `'violation_rate'`: Fraction of time outside drivable area
+  - `'distances'`: Distance at each timestep
+
+**Example:**
+```python
+# With Shapely polygon (preferred)
+from shapely.geometry import Polygon
+drivable = Polygon([...])
+result = calculate_distance_to_road_edge(traj, drivable_area=drivable)
+
+# With lane centerline (fallback)
+result = calculate_distance_to_road_edge(
+    traj, lane_centerline=centerline, lane_width=3.5
+)
+```
+
+---
+
+#### `calculate_driving_direction_compliance(trajectory, headings, lane_centerline, angle_threshold=1.5708)`
+
+**NEW**: Calculate driving direction compliance (wrong-way detection, nuPlan style).
+
+**Parameters:**
+- `trajectory` (np.ndarray): Ego trajectory positions (T, 2)
+- `headings` (np.ndarray): Ego heading angles (T,) in radians
+- `lane_centerline` (np.ndarray): Lane centerline points (N, 2)
+- `angle_threshold` (float): Angle threshold for wrong-way (radians), default π/2
+
+**Returns:**
+- `Dict`: Dictionary containing:
+  - `'compliance_score'`: Overall compliance score [0, 1]
+  - `'wrong_way_distance'`: Total distance driven wrong way
+  - `'wrong_way_rate'`: Fraction of time driving wrong way
+  - `'heading_errors'`: Heading errors at each timestep
+
+**Example:**
+```python
+result = calculate_driving_direction_compliance(
+    trajectory, headings, lane_centerline
+)
+if result['compliance_score'] < 0.5:
+    print("⚠️ Wrong-way driving detected!")
+```
+
+---
+
+#### `calculate_interaction_metrics(ego_trajectory, other_objects, vehicle_size=(4.5, 2.0), close_distance_threshold=5.0)`
+
+**NEW**: Calculate interaction/proximity metrics for multi-agent scenarios (Waymo Sim Agents style).
+
+**Parameters:**
+- `ego_trajectory` (np.ndarray): Ego trajectory positions (T, 2)
+- `other_objects` (List[np.ndarray]): Other object trajectories (static or dynamic)
+- `vehicle_size` (Tuple): Vehicle (length, width)
+- `close_distance_threshold` (float): Distance threshold for close interactions, default 5.0m
+
+**Returns:**
+- `Dict`: Dictionary containing:
+  - `'min_distance'`: Minimum distance to any object across all timesteps
+  - `'mean_distance_to_nearest'`: Mean distance to nearest object
+  - `'distance_to_nearest_per_timestep'`: Distance to nearest object at each timestep
+  - `'closest_object_id'`: ID of closest object
+  - `'closest_approach_timestep'`: Timestep of closest approach
+  - `'num_close_interactions'`: Count of timesteps with distance < threshold
+
+**Example:**
+```python
+result = calculate_interaction_metrics(
+    ego_traj, other_vehicles, close_distance_threshold=5.0
+)
+print(f"Min distance: {result['min_distance']:.2f}m")
+print(f"Close interactions: {result['num_close_interactions']}")
+```
 
 ---
 

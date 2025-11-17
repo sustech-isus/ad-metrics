@@ -424,3 +424,68 @@ def calculate_surface_distance(
         result['percentile_distance'] = None
     
     return result
+
+
+def calculate_f_score(pred_occupancy: np.ndarray, gt_occupancy: np.ndarray, beta: float = 1.0, class_id: Optional[int] = None, ignore_index: int = 255) -> float:
+    """
+    Compute F-score for occupancy predictions (wrapper around precision/recall).
+    """
+    pr = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=class_id, ignore_index=ignore_index)
+    precision = pr['precision']
+    recall = pr['recall']
+    if precision + recall == 0:
+        return 0.0
+    return (1 + beta ** 2) * (precision * recall) / ((beta ** 2) * precision + recall)
+
+
+def calculate_hausdorff_distance(*args, **kwargs):
+    """
+    Placeholder alias for Hausdorff distance. The codebase provides
+    Chamfer distance via :func:`calculate_chamfer_distance` which is typically
+    used as an alternative. This function currently delegates to chamfer.
+    """
+    return calculate_chamfer_distance(*args, **kwargs)
+
+
+def calculate_ray_iou(*args, **kwargs):
+    """
+    Legacy alias placeholder for ray-based IoU evaluation.
+
+    The current implementation exposes :func:`calculate_mean_iou` and
+    :func:`calculate_occupancy_iou`. If a true ray-based IoU is required,
+    implement it separately. For now, delegate to calculate_mean_iou.
+    """
+    # Delegate to mean IoU for compatibility
+    return calculate_mean_iou(*args, **kwargs)
+
+
+def calculate_depth_error(*args, **kwargs):
+    """
+    Placeholder for depth error metrics. Not implemented; raise NotImplementedError
+    to indicate this metric is not available.
+    """
+    raise NotImplementedError("calculate_depth_error is not implemented in this module")
+
+
+def calculate_absrel_error(*args, **kwargs):
+    """
+    Placeholder for absolute relative error (absrel). Not implemented.
+    """
+    raise NotImplementedError("calculate_absrel_error is not implemented in this module")
+
+
+def calculate_occupancy_metrics(*args, **kwargs):
+    """
+    Convenience wrapper that returns a collection of occupancy metrics.
+
+    Returns a dict with keys for IoU, mean IoU, scene completion and chamfer.
+    """
+    pred, gt = args[0], args[1] if len(args) >= 2 else (None, None)
+    if pred is None or gt is None:
+        raise ValueError("calculate_occupancy_metrics requires pred and gt arrays")
+    metrics = {}
+    metrics['occupancy_iou'] = calculate_occupancy_iou(pred, gt)
+    metrics['mean_iou'] = calculate_mean_iou(pred, gt, num_classes=int(kwargs.get('num_classes', 2)))
+    metrics['scene_completion'] = calculate_scene_completion(pred, gt)
+    metrics['chamfer'] = calculate_chamfer_distance(kwargs.get('pred_points', np.array([])), kwargs.get('gt_points', np.array([])))
+    return metrics

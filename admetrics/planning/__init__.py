@@ -3,6 +3,7 @@
 from .planning import (
     calculate_l2_distance,
     calculate_collision_rate,
+    calculate_collision_with_fault_classification,
     calculate_progress_score,
     calculate_route_completion,
     average_displacement_error_planning,
@@ -12,11 +13,20 @@ from .planning import (
     calculate_comfort_metrics,
     calculate_driving_score,
     calculate_planning_kl_divergence,
+    calculate_time_to_collision,
+    calculate_time_to_collision_enhanced,
+    calculate_lane_invasion_rate,
+    calculate_collision_severity,
+    check_kinematic_feasibility,
+    calculate_distance_to_road_edge,
+    calculate_driving_direction_compliance,
+    calculate_interaction_metrics,
 )
 
 __all__ = [
     'calculate_l2_distance',
     'calculate_collision_rate',
+    'calculate_collision_with_fault_classification',
     'calculate_progress_score',
     'calculate_route_completion',
     'average_displacement_error_planning',
@@ -26,4 +36,12 @@ __all__ = [
     'calculate_comfort_metrics',
     'calculate_driving_score',
     'calculate_planning_kl_divergence',
+    'calculate_time_to_collision',
+    'calculate_time_to_collision_enhanced',
+    'calculate_lane_invasion_rate',
+    'calculate_collision_severity',
+    'check_kinematic_feasibility',
+    'calculate_distance_to_road_edge',
+    'calculate_driving_direction_compliance',
+    'calculate_interaction_metrics',
 ]

@@ -14,6 +14,8 @@ from admetrics.simulation import (
     calculate_multimodal_sensor_alignment,
     calculate_temporal_consistency,
     calculate_perception_sim2real_gap,
+    calculate_weather_simulation_quality,
+    calculate_vehicle_dynamics_quality,
 )
 
 
@@ -338,6 +340,375 @@ def example_7_sim2real_gap():
     print("  - Large gaps (>20%): Significant sim-to-real domain shift")
 
 
+def example_8_weather_quality():
+    """Example 8: Weather and Environmental Quality Assessment."""
+    print_section("Example 8: Weather and Environmental Quality")
+    
+    np.random.seed(50)
+    
+    # Example 8a: Rain simulation validation
+    print("8a. Rain Simulation Validation")
+    print("-" * 80)
+    
+    # Moderate rain scenario (gamma distribution is typical for rain)
+    sim_rain = {
+        'intensity': np.random.gamma(3, 4, 1000),  # ~12 mm/h average rain rate
+        'visibility': np.random.normal(300, 60, 1000),  # Reduced visibility (m)
+        'images': np.random.rand(10, 64, 64, 3) * 180  # Darker images due to rain
+    }
+    
+    real_rain = {
+        'intensity': np.random.gamma(3.1, 3.9, 1000),  # Similar rain distribution
+        'visibility': np.random.normal(290, 65, 1000),
+        'images': np.random.rand(10, 64, 64, 3) * 175
+    }
+    
+    rain_quality = calculate_weather_simulation_quality(
+        sim_rain, real_rain, 
+        weather_type='rain',
+        metrics=['intensity_distribution', 'visibility_range', 
+                 'temporal_consistency', 'spatial_distribution']
+    )
+    
+    print(f"  Rain Intensity KL Divergence: {rain_quality['intensity_kl_divergence']:.3f}")
+    print(f"    Sim mean: {rain_quality['intensity_mean_sim']:.1f} mm/h")
+    print(f"    Real mean: {rain_quality['intensity_mean_real']:.1f} mm/h")
+    print(f"    Std ratio: {rain_quality['intensity_std_ratio']:.2f}")
+    print(f"  Visibility Mean Error: {rain_quality['visibility_mean_error']:.1f} m")
+    print(f"    KS p-value: {rain_quality['visibility_ks_pvalue']:.3f}")
+    print(f"  Temporal Stability: {rain_quality['temporal_stability']:.2f}")
+    print(f"  Spatial Correlation: {rain_quality['spatial_correlation']:.2f}")
+    print(f"  Overall Realism Score: {rain_quality['overall_realism_score']:.1f}/100")
+    
+    if rain_quality['overall_realism_score'] > 75:
+        print("  ✓ Rain simulation is production-ready")
+    else:
+        print(f"  ⚠ Rain simulation needs improvement")
+    
+    # Example 8b: Fog simulation validation
+    print("\n8b. Fog Simulation Validation")
+    print("-" * 80)
+    
+    # Dense fog scenario (exponential distribution typical for fog density)
+    sim_fog = {
+        'intensity': np.random.exponential(2.5, 1000),  # Fog density
+        'visibility': np.random.normal(180, 35, 1000),  # Low visibility
+    }
+    
+    real_fog = {
+        'intensity': np.random.exponential(2.6, 1000),
+        'visibility': np.random.normal(175, 38, 1000),
+    }
+    
+    fog_quality = calculate_weather_simulation_quality(
+        sim_fog, real_fog,
+        weather_type='fog',
+        metrics=['intensity_distribution', 'visibility_range']
+    )
+    
+    print(f"  Fog Density KL Divergence: {fog_quality['intensity_kl_divergence']:.3f}")
+    print(f"    Sim mean: {fog_quality['intensity_mean_sim']:.2f}")
+    print(f"    Real mean: {fog_quality['intensity_mean_real']:.2f}")
+    print(f"  Visibility Mean Error: {fog_quality['visibility_mean_error']:.1f} m")
+    print(f"    Sim median: {fog_quality['visibility_median_sim']:.1f} m")
+    print(f"    Real median: {fog_quality['visibility_median_real']:.1f} m")
+    
+    # Fog visibility is safety-critical
+    if fog_quality['visibility_mean_error'] < 50:
+        print("  ✓ Fog visibility simulation is accurate")
+    else:
+        print("  ⚠ Fog visibility needs calibration")
+    
+    # Example 8c: Lighting condition validation
+    print("\n8c. Lighting Condition Validation (Dusk/Dawn)")
+    print("-" * 80)
+    
+    # Dusk lighting: gradual transition, beta distribution
+    sim_dusk = {
+        'lighting': np.random.beta(3, 3, 1000),  # Mid-range lighting (0-1)
+    }
+    
+    real_dusk = {
+        'lighting': np.random.beta(3.2, 2.9, 1000),
+    }
+    
+    lighting_quality = calculate_weather_simulation_quality(
+        sim_dusk, real_dusk,
+        weather_type='lighting',
+        metrics=['lighting_histogram']
+    )
+    
+    print(f"  Lighting KL Divergence: {lighting_quality['lighting_kl_divergence']:.3f}")
+    print(f"    Sim mean: {lighting_quality['lighting_mean_sim']:.2f}")
+    print(f"    Real mean: {lighting_quality['lighting_mean_real']:.2f}")
+    
+    if lighting_quality['lighting_kl_divergence'] < 0.3:
+        print("  ✓ Lighting distribution is realistic")
+    else:
+        print("  ⚠ Lighting distribution needs adjustment")
+    
+    # Example 8d: Shadow realism validation
+    print("\n8d. Shadow Realism Validation")
+    print("-" * 80)
+    
+    # Create images with shadow patterns
+    sim_shadow_imgs = np.ones((10, 64, 64, 3)) * 150
+    sim_shadow_imgs[:, :, :30, :] = 70  # Shadow on left side
+    
+    real_shadow_imgs = np.ones((10, 64, 64, 3)) * 145
+    real_shadow_imgs[:, :, :30, :] = 75  # Similar shadow
+    
+    sim_shadows = {
+        'shadow_coverage': np.random.beta(3, 7, 500),  # ~30% shadow coverage
+        'images': sim_shadow_imgs
+    }
+    
+    real_shadows = {
+        'shadow_coverage': np.random.beta(3.1, 6.9, 500),
+        'images': real_shadow_imgs
+    }
+    
+    shadow_quality = calculate_weather_simulation_quality(
+        sim_shadows, real_shadows,
+        weather_type='shadows',
+        metrics=['shadow_realism']
+    )
+    
+    print(f"  Shadow Coverage Error: {shadow_quality['shadow_coverage_error']:.3f}")
+    print(f"    Sim coverage: {shadow_quality['shadow_coverage_sim']:.2f}")
+    print(f"    Real coverage: {shadow_quality['shadow_coverage_real']:.2f}")
+    print(f"  Shadow Edge Sharpness Ratio: {shadow_quality['shadow_edge_sharpness']:.2f}")
+    
+    if shadow_quality['shadow_coverage_error'] < 0.1:
+        print("  ✓ Shadow coverage is accurate")
+    else:
+        print("  ⚠ Shadow coverage needs calibration")
+    
+    # Example 8e: Comprehensive weather quality assessment
+    print("\n8e. Comprehensive Weather Assessment")
+    print("-" * 80)
+    
+    weather_conditions = {
+        'light_rain': {'sim': sim_rain, 'real': real_rain, 'type': 'rain'},
+        'dense_fog': {'sim': sim_fog, 'real': real_fog, 'type': 'fog'},
+    }
+    
+    print("Weather Simulation Quality Summary:")
+    for condition_name, data in weather_conditions.items():
+        quality = calculate_weather_simulation_quality(
+            data['sim'], data['real'], weather_type=data['type']
+        )
+        score = quality.get('overall_realism_score', 0)
+        status = "✓" if score > 75 else "⚠"
+        print(f"  {status} {condition_name:15s}: {score:5.1f}/100")
+    
+    print("\nWeather Validation Best Practices:")
+    print("  1. Test multiple intensity levels (light/moderate/heavy)")
+    print("  2. Validate temporal transitions (onset, steady-state, clearing)")
+    print("  3. Check sensor-specific effects (camera droplets, LiDAR absorption)")
+    print("  4. Verify geographic variations (tropical vs. temperate rain)")
+    print("  5. Ensure overall realism score > 75 for production use")
+    print("=" * 80 + "\n")
+
+
+def example_9_vehicle_dynamics_quality():
+    """Example 9: Vehicle Dynamics and Physics Validation."""
+    print_section("Example 9: Vehicle Dynamics Quality")
+    
+    np.random.seed(42)
+    
+    # Scenario 1: Highway merging (acceleration + lateral movement)
+    print("Scenario 1: Highway Merging")
+    print("-" * 40)
+    N, T = 20, 100  # 20 vehicles, 100 timesteps
+    dt = 0.1  # 10 Hz
+    t = np.linspace(0, (T-1)*dt, T)
+    
+    # Create realistic highway merge trajectories
+    # Real: Smooth acceleration from 20 m/s to 30 m/s with lane change
+    real_merge_traj = np.zeros((N, T, 6))
+    for i in range(N):
+        # Longitudinal: smooth acceleration
+        v0 = 20.0 + np.random.randn() * 2.0
+        a = 1.5 + np.random.randn() * 0.3  # ~1.5 m/s² acceleration
+        vx = np.clip(v0 + a * t, v0, 30.0)
+        x = np.cumsum(vx) * dt
+        
+        # Lateral: smooth lane change around t=3-5 seconds
+        merge_start = 30 + np.random.randint(-5, 5)
+        merge_duration = 30
+        y = 3.5 * (1.0 / (1.0 + np.exp(-(np.arange(T) - merge_start) / 5)))
+        vy = np.gradient(y, dt)
+        
+        real_merge_traj[i, :, 0] = x
+        real_merge_traj[i, :, 1] = y
+        real_merge_traj[i, :, 2] = vx
+        real_merge_traj[i, :, 3] = vy
+    
+    # Sim: Similar but with slightly different dynamics
+    sim_merge_traj = real_merge_traj.copy()
+    # Simulation has slightly higher acceleration
+    sim_merge_traj[:, :, 2] *= 1.15
+    sim_merge_traj[:, :, 0] = np.cumsum(sim_merge_traj[:, :, 2], axis=1) * dt
+    # Add some noise
+    sim_merge_traj[:, :, :4] += np.random.randn(N, T, 4) * 0.1
+    
+    merge_quality = calculate_vehicle_dynamics_quality(
+        sim_merge_traj, real_merge_traj,
+        maneuver_type='acceleration',
+        metrics=['acceleration_profile', 'lateral_dynamics', 'trajectory_smoothness']
+    )
+    
+    print(f"Overall Dynamics Score: {merge_quality.get('overall_score', 0):.1f}/100")
+    if 'acceleration_kl_divergence' in merge_quality:
+        kl = merge_quality['acceleration_kl_divergence']
+        status = "✓" if kl < 0.5 else "⚠"
+        print(f"  {status} Acceleration Distribution Match: KL={kl:.3f}")
+    
+    if 'lateral_accel_max_sim' in merge_quality:
+        lat_sim = merge_quality['lateral_accel_max_sim']
+        lat_real = merge_quality.get('lateral_accel_max_real', 0)
+        print(f"  • Lateral Accel: Sim={lat_sim:.2f}, Real={lat_real:.2f} m/s²")
+    
+    if 'longitudinal_jerk_mean_sim' in merge_quality:
+        jerk_sim = merge_quality['longitudinal_jerk_mean_sim']
+        jerk_real = merge_quality.get('longitudinal_jerk_mean_real', 0)
+        status = "✓" if jerk_sim < 3.0 else "⚠"
+        print(f"  {status} Longitudinal Jerk: Sim={jerk_sim:.2f}, Real={jerk_real:.2f} m/s³")
+    
+    # Scenario 2: Emergency braking
+    print("\nScenario 2: Emergency Braking")
+    print("-" * 40)
+    N, T = 15, 60
+    
+    # Real: Vehicle braking from 25 m/s to 0 with realistic deceleration
+    real_brake_traj = np.zeros((N, T, 6))
+    for i in range(N):
+        v0 = 25.0 + np.random.randn() * 2.0
+        # Emergency braking ~7 m/s²
+        decel = 7.0 + np.random.randn() * 0.5
+        
+        vx = np.zeros(T)
+        x = np.zeros(T)
+        for t_idx in range(T):
+            if t_idx < 10:  # Cruising
+                vx[t_idx] = v0
+            else:  # Braking
+                vx[t_idx] = max(0, v0 - decel * (t_idx - 10) * dt)
+            
+            if t_idx > 0:
+                x[t_idx] = x[t_idx-1] + vx[t_idx] * dt
+        
+        real_brake_traj[i, :, 0] = x
+        real_brake_traj[i, :, 2] = vx
+    
+    # Sim: Slightly different braking characteristics
+    sim_brake_traj = real_brake_traj.copy()
+    # Simulation has slightly longer braking distance (lower deceleration)
+    for i in range(N):
+        v0 = sim_brake_traj[i, 0, 2]
+        decel = 6.5  # Slightly lower
+        vx = np.zeros(T)
+        x = np.zeros(T)
+        for t_idx in range(T):
+            if t_idx < 10:
+                vx[t_idx] = v0
+            else:
+                vx[t_idx] = max(0, v0 - decel * (t_idx - 10) * dt)
+            if t_idx > 0:
+                x[t_idx] = x[t_idx-1] + vx[t_idx] * dt
+        
+        sim_brake_traj[i, :, 0] = x
+        sim_brake_traj[i, :, 2] = vx
+    
+    brake_quality = calculate_vehicle_dynamics_quality(
+        sim_brake_traj, real_brake_traj,
+        maneuver_type='braking',
+        metrics=['braking_distance']
+    )
+    
+    print(f"Overall Dynamics Score: {brake_quality.get('overall_score', 0):.1f}/100")
+    if 'braking_distance_error' in brake_quality:
+        error = brake_quality['braking_distance_error']
+        status = "✓" if abs(error) < 15 else "⚠"
+        print(f"  {status} Braking Distance Error: {error:+.1f}%")
+    
+    if 'deceleration_mean' in brake_quality:
+        decel = brake_quality['deceleration_mean']
+        print(f"  • Mean Deceleration: {decel:.2f} m/s²")
+    
+    # Scenario 3: Urban lane changes
+    print("\nScenario 3: Urban Lane Changes")
+    print("-" * 40)
+    N, T = 10, 80
+    
+    # Real: Lane change at moderate speed
+    real_lane_traj = np.zeros((N, T, 6))
+    for i in range(N):
+        vx = 15.0 + np.random.randn() * 1.0  # ~15 m/s constant speed
+        x = np.arange(T) * vx * dt
+        
+        # Lane change at t=2s for duration of 3s
+        lane_start = 20 + np.random.randint(-3, 3)
+        y = 3.5 * (1.0 / (1.0 + np.exp(-(np.arange(T) - lane_start) / 4)))
+        vy = np.gradient(y, dt)
+        
+        real_lane_traj[i, :, 0] = x
+        real_lane_traj[i, :, 1] = y
+        real_lane_traj[i, :, 2] = vx
+        real_lane_traj[i, :, 3] = vy
+    
+    # Sim: Similar but with sharper lane change
+    sim_lane_traj = real_lane_traj.copy()
+    for i in range(N):
+        lane_start = 20
+        # Sharper transition
+        y = 3.5 * (1.0 / (1.0 + np.exp(-(np.arange(T) - lane_start) / 3)))
+        vy = np.gradient(y, dt)
+        sim_lane_traj[i, :, 1] = y
+        sim_lane_traj[i, :, 3] = vy
+    
+    lane_quality = calculate_vehicle_dynamics_quality(
+        sim_lane_traj, real_lane_traj,
+        maneuver_type='lane_change',
+        metrics=['lateral_dynamics', 'trajectory_smoothness']
+    )
+    
+    print(f"Overall Dynamics Score: {lane_quality.get('overall_score', 0):.1f}/100")
+    if 'lateral_jerk_ratio' in lane_quality:
+        ratio = lane_quality['lateral_jerk_ratio']
+        status = "✓" if 0.8 <= ratio <= 1.2 else "⚠"
+        print(f"  {status} Lateral Jerk Ratio (sim/real): {ratio:.2f}")
+    
+    if 'lateral_accel_max_sim' in lane_quality:
+        lat_sim = lane_quality['lateral_accel_max_sim']
+        lat_real = lane_quality.get('lateral_accel_max_real', 0)
+        print(f"  • Lateral Accel: Sim={lat_sim:.2f}, Real={lat_real:.2f} m/s²")
+    
+    # Comprehensive validation summary
+    print("\nVehicle Dynamics Quality Summary:")
+    print("-" * 40)
+    scenarios = {
+        'Highway Merge': merge_quality,
+        'Emergency Brake': brake_quality,
+        'Urban Lane Change': lane_quality,
+    }
+    
+    for scenario_name, quality in scenarios.items():
+        score = quality.get('overall_score', 0)
+        status = "✓" if score > 70 else "⚠"
+        print(f"  {status} {scenario_name:20s}: {score:5.1f}/100")
+    
+    print("\nVehicle Dynamics Best Practices:")
+    print("  1. Validate acceleration: KL divergence < 0.5 for good match")
+    print("  2. Check braking: Distance error < 15% for safety-critical")
+    print("  3. Lateral dynamics: Typical lane change 2-4 m/s² lateral accel")
+    print("  4. Smoothness: Jerk < 3 m/s³ for comfortable motion")
+    print("  5. Match scenario types: Highway vs urban have different profiles")
+    print("  6. Physics limits: Accel < 4 m/s² normal, < 10 m/s² emergency")
+    print("=" * 80 + "\n")
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 80)
     print("Simulation Quality Metrics - Usage Examples")
@@ -350,6 +721,8 @@ if __name__ == "__main__":
     example_5_multimodal_alignment()
     example_6_temporal_consistency()
     example_7_sim2real_gap()
+    example_8_weather_quality()
+    example_9_vehicle_dynamics_quality()
     
     print("\n" + "=" * 80)
     print("All examples completed!")
@@ -362,4 +735,6 @@ if __name__ == "__main__":
     print("  5. Calibration: Multimodal alignment, spatial consistency")
     print("  6. Temporal: Frame-to-frame consistency, flicker rate")
     print("  7. Sim2Real: Precision/recall gaps, performance degradation")
+    print("  8. Weather: Rain/fog/lighting realism, environmental fidelity")
+    print("  9. Dynamics: Acceleration, braking, lateral motion, smoothness")
     print("=" * 80 + "\n")

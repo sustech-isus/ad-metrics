@@ -3,7 +3,7 @@ Visualization utilities for 3D object detection.
 """
 
 import numpy as np
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 
 try:
     import matplotlib.pyplot as plt
@@ -18,9 +18,9 @@ def plot_boxes_3d(
     boxes: List[np.ndarray],
     labels: Optional[List[str]] = None,
     colors: Optional[List[str]] = None,
-    ax: Optional['Axes3D'] = None,
+    ax: Optional[Any] = None,
     show: bool = True
-) -> 'Axes3D':
+ ) -> Any:
     """
     Plot 3D bounding boxes.
     
@@ -81,11 +81,11 @@ def plot_boxes_bev(
     boxes: List[np.ndarray],
     labels: Optional[List[str]] = None,
     colors: Optional[List[str]] = None,
-    ax: Optional['plt.Axes'] = None,
+    ax: Optional[Any] = None,
     show: bool = True,
     x_range: Optional[Tuple[float, float]] = None,
     y_range: Optional[Tuple[float, float]] = None
-) -> 'plt.Axes':
+ ) -> Any:
     """
     Plot Bird's Eye View of 3D boxes.
     
@@ -157,7 +157,7 @@ def plot_precision_recall_curve(
     title: str = "Precision-Recall Curve",
     ax: Optional['plt.Axes'] = None,
     show: bool = True
-) -> 'plt.Axes':
+ ) -> Any:
     """
     Plot precision-recall curve.
     

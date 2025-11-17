@@ -315,3 +315,13 @@ def calculate_precision_recall_curve(
     )
     
     return result['precision'], result['recall'], result['scores']
+
+
+def calculate_coco_metrics(*args, **kwargs):
+    """
+    Backwards-compatible alias for COCO-style AP calculation.
+
+    This function wraps :func:`calculate_ap_coco_style` for projects that
+    reference the older name ``calculate_coco_metrics`` in the documentation.
+    """
+    return calculate_ap_coco_style(*args, **kwargs)

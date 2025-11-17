@@ -318,8 +318,8 @@ def calculate_giou_3d(
     """
     Calculate Generalized IoU (GIoU) for 3D boxes.
     
-    GIoU = IoU - |C - (A ∪ B)| / |C|
-    where C is the smallest enclosing box.
+    GIoU = IoU - (volume(C) - volume(A ∪ B)) / volume(C), where C is the smallest
+    enclosing box that contains both A and B.
     
     Args:
         box1: First 3D bounding box
