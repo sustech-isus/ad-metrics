@@ -19,6 +19,10 @@ This document describes the metrics for evaluating 3D semantic occupancy predict
     - [3. Geometric Quality Metrics](#3-geometric-quality-metrics)
       - [Chamfer Distance (CD)](#chamfer-distance-cd)
       - [Surface Distance (SD)](#surface-distance-sd)
+    - [4. Advanced Metrics](#4-advanced-metrics)
+      - [Visibility-Weighted IoU](#visibility-weighted-iou)
+      - [Panoptic Quality (PQ)](#panoptic-quality-pq)
+      - [Video Panoptic Quality (VPQ)](#video-panoptic-quality-vpq)
   - [Benchmark Datasets](#benchmark-datasets)
     - [nuScenes-Occupancy](#nuscenes-occupancy)
     - [SemanticKITTI](#semantickitti)
@@ -58,7 +62,7 @@ IoU = Intersection / Union
 
 **Usage:**
 ```python
-from admetrics.occupancy import occupancy_iou
+from admetrics.occupancy import calculate_occupancy_iou
 
 # Calculate IoU for a specific class
 iou = calculate_occupancy_iou(pred_occupancy, gt_occupancy, class_id=1)
@@ -90,7 +94,7 @@ mIoU = (1/C) * Σ(IoU_c) for c in valid_classes
 
 **Usage:**
 ```python
-from admetrics.occupancy import mean_iou
+from admetrics.occupancy import calculate_mean_iou
 
 result = calculate_mean_iou(pred_occupancy, gt_occupancy, num_classes=5)
 print(f"mIoU: {result['mIoU']}")
@@ -116,7 +120,7 @@ F1 = 2 * Precision * Recall / (Precision + Recall)
 
 **Usage:**
 ```python
-from admetrics.occupancy import occupancy_precision_recall
+from admetrics.occupancy import calculate_occupancy_precision_recall
 
 metrics = calculate_occupancy_precision_recall(pred_occupancy, gt_occupancy, class_id=1)
 print(f"Precision: {metrics['precision']:.4f}")
@@ -178,7 +182,7 @@ Completion_Ratio = |predicted_occupied| / |gt_occupied|
 
 **Usage:**
 ```python
-from admetrics.occupancy import scene_completion
+from admetrics.occupancy import calculate_scene_completion
 
 sc = calculate_scene_completion(pred_occupancy, gt_occupancy, free_class=0)
 print(f"SC IoU: {sc['SC_IoU']:.4f}")
@@ -209,10 +213,11 @@ Where:
 - Symmetric (bidirectional) version recommended
 - Sensitive to shape and boundary accuracy
 - Lower is better
+- Returns `np.inf` if either point set is empty
 
 **Usage:**
 ```python
-from admetrics.occupancy import chamfer_distance
+from admetrics.occupancy import calculate_chamfer_distance
 
 # Extract occupied voxel coordinates
 pred_points = np.argwhere(pred_occupancy > 0).astype(float)
@@ -242,10 +247,11 @@ Measures distances between predicted and ground truth surfaces.
 - More sensitive than Chamfer Distance to surface misalignments
 - Scales with voxel size parameter
 - Lower is better
+- Returns `np.inf` if no surface voxels found in either occupancy grid
 
 **Usage:**
 ```python
-from admetrics.occupancy import surface_distance
+from admetrics.occupancy import calculate_surface_distance
 
 sd = calculate_surface_distance(
     pred_occupancy, 
@@ -261,6 +267,166 @@ print(f"95th percentile: {sd['percentile_distance']:.4f} m")
 - Evaluating reconstruction quality
 - Measuring boundary alignment
 - Detecting systematic shape errors
+
+---
+
+### 4. Advanced Metrics
+
+#### Visibility-Weighted IoU
+Measures IoU with weighting based on voxel visibility from sensor viewpoint.
+
+**Purpose:**
+Provides a more fair evaluation for camera-based or LiDAR-based occupancy prediction by downweighting occluded or far regions that are inherently harder to predict.
+
+**Formula:**
+```
+Weighted_IoU = Σ(intersection * visibility) / Σ(union * visibility)
+```
+
+**Properties:**
+- Accounts for sensor limitations and occlusions
+- Higher weight for visible/close voxels
+- Lower weight for occluded/distant voxels
+- More realistic evaluation for perception-based methods
+
+**Usage:**
+```python
+from admetrics.occupancy import calculate_visibility_weighted_iou
+
+# Option 1: Provide explicit visibility mask (from ray-casting)
+visibility_mask = create_visibility_mask_from_sensors(...)  # Your implementation
+result = calculate_visibility_weighted_iou(
+    pred_occupancy, gt_occupancy, 
+    visibility_mask=visibility_mask,
+    num_classes=16
+)
+
+# Option 2: Use automatic distance-based visibility
+result = calculate_visibility_weighted_iou(
+    pred_occupancy, gt_occupancy, 
+    num_classes=16  # Automatic distance-based weighting
+)
+
+print(f"Visibility-weighted mIoU: {result['visibility_weighted_mIoU']:.4f}")
+print(f"Visible voxel ratio: {result['visible_voxel_ratio']:.4f}")
+```
+
+**Applications:**
+- Camera-based occupancy prediction evaluation
+- LiDAR range-dependent evaluation
+- Handling occlusion-heavy scenarios
+
+---
+
+#### Panoptic Quality (PQ)
+Evaluates instance-aware occupancy prediction combining semantic and instance segmentation.
+
+**Formula:**
+```
+PQ = SQ × RQ
+```
+
+Where:
+- **SQ** (Segmentation Quality): Average IoU of matched instances
+- **RQ** (Recognition Quality): F1 score of instance detection
+
+**Properties:**
+- Combines stuff (road, building) and thing (vehicle, pedestrian) classes
+- Stuff classes: evaluated by semantic IoU
+- Thing classes: requires instance-level matching
+- Range: [0, 1], higher is better
+
+**Usage:**
+```python
+from admetrics.occupancy import calculate_panoptic_quality
+
+# Semantic occupancy grids
+pred_semantic = load_semantic_occupancy()  # (X, Y, Z) with class IDs
+gt_semantic = load_gt_semantic()
+
+# Instance ID grids (0 = no instance)
+pred_instances = load_instance_ids()  # (X, Y, Z) with instance IDs
+gt_instances = load_gt_instances()
+
+# Define stuff classes (non-instance categories)
+stuff_classes = [0, 1, 2]  # e.g., free space, road, sidewalk
+
+pq = calculate_panoptic_quality(
+    pred_semantic, pred_instances,
+    gt_semantic, gt_instances,
+    num_classes=16,
+    stuff_classes=stuff_classes
+)
+
+print(f"PQ: {pq['PQ']:.4f}")
+print(f"SQ (Segmentation Quality): {pq['SQ']:.4f}")
+print(f"RQ (Recognition Quality): {pq['RQ']:.4f}")
+print(f"PQ_stuff: {pq['PQ_stuff']:.4f}")
+print(f"PQ_thing: {pq['PQ_thing']:.4f}")
+```
+
+**Applications:**
+- Instance-level occupancy evaluation
+- 4D occupancy with object tracking
+- Panoptic scene understanding
+
+**References:**
+- Panoptic Segmentation (Kirillov et al., CVPR 2019)
+- Adapted for 3D voxel-based predictions
+
+---
+
+#### Video Panoptic Quality (VPQ)
+Extends Panoptic Quality to temporal sequences, measuring both spatial accuracy and temporal consistency.
+
+**Formula:**
+```
+VPQ = PQ × AQ
+STQ = √(SQ × AQ)
+```
+
+Where:
+- **AQ** (Association Quality): Temporal consistency of instance IDs
+- **STQ** (Spatial-Temporal Quality): Combined spatial and temporal metric
+
+**Properties:**
+- Evaluates instance tracking over time
+- Penalizes ID switches and fragmentation
+- Measures 4D scene understanding (3D space + time)
+- Critical for autonomous driving scenarios
+
+**Usage:**
+```python
+from admetrics.occupancy import calculate_video_panoptic_quality
+
+# Load sequence of frames (e.g., 10 frames)
+pred_semantic_seq = [load_frame(t) for t in range(10)]
+pred_instance_seq = [load_instances(t) for t in range(10)]
+gt_semantic_seq = [load_gt_frame(t) for t in range(10)]
+gt_instance_seq = [load_gt_instances(t) for t in range(10)]
+
+vpq = calculate_video_panoptic_quality(
+    pred_semantic_seq, pred_instance_seq,
+    gt_semantic_seq, gt_instance_seq,
+    num_classes=16,
+    stuff_classes=[0, 1, 2]
+)
+
+print(f"VPQ: {vpq['VPQ']:.4f}")
+print(f"STQ (Spatial-Temporal Quality): {vpq['STQ']:.4f}")
+print(f"AQ (Association Quality): {vpq['AQ']:.4f}")
+print(f"Per-frame PQ: {vpq['per_frame_pq']}")
+```
+
+**Applications:**
+- 4D occupancy forecasting evaluation
+- Temporal consistency measurement
+- Multi-object tracking in voxel space
+- Scene flow evaluation
+
+**References:**
+- Video Panoptic Segmentation (Kim et al., CVPR 2020)
+- Adapted for 4D occupancy prediction
 
 ---
 
@@ -282,7 +448,8 @@ print(f"95th percentile: {sd['percentile_distance']:.4f} m")
 - **Description**: Large-scale 3D occupancy prediction benchmark
 - **Resolution**: 200 x 200 x 16 voxels
 - **Classes**: 16 semantic classes
-- **Primary Metric**: mIoU, Ray-based metrics
+- **Primary Metric**: mIoU
+- **Note**: Ray-based IoU evaluation is mentioned in Occ3D benchmark but not fully implemented in this library. The `calculate_ray_iou` function is a compatibility alias that delegates to standard `calculate_mean_iou`.
 
 ---
 
@@ -302,12 +469,26 @@ print(f"95th percentile: {sd['percentile_distance']:.4f} m")
 - Primary: Surface Distance
 - Secondary: Chamfer Distance
 
+**For Camera-Based Methods:**
+- Primary: Visibility-Weighted IoU
+- Secondary: Standard mIoU (for comparison)
+
+**For Instance-Aware Prediction:**
+- Primary: Panoptic Quality (PQ)
+- Secondary: SQ and RQ breakdown, per-class PQ
+
+**For Temporal/Video Occupancy:**
+- Primary: Video Panoptic Quality (VPQ)
+- Secondary: STQ, AQ, per-frame PQ
+
 ### 2. Evaluation Protocol
 
 1. **Resolution Matching**: Ensure pred and GT use same voxel resolution
 2. **Coordinate Alignment**: Align coordinate systems before evaluation
 3. **Ignore Index**: Use consistent ignore index (255) for unknown/invalid voxels
 4. **Class Balance**: Report per-class metrics to identify weak classes
+5. **Visibility Consideration**: Use visibility-weighted metrics for sensor-limited scenarios
+6. **Instance Tracking**: For 4D prediction, evaluate temporal consistency with VPQ
 
 ### 3. Common Pitfalls
 
@@ -334,10 +515,10 @@ print(f"95th percentile: {sd['percentile_distance']:.4f} m")
 ```python
 import numpy as np
 from admetrics.occupancy import (
-    mean_iou, 
-    scene_completion,
-    surface_distance,
-    occupancy_precision_recall
+    calculate_mean_iou, 
+    calculate_scene_completion,
+    calculate_surface_distance,
+    calculate_occupancy_precision_recall
 )
 
 # Load predictions and ground truth

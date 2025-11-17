@@ -12,7 +12,11 @@ from admetrics.vectormap import (
     calculate_topology_metrics,
     calculate_endpoint_error,
     calculate_direction_accuracy,
-    calculate_vectormap_ap
+    calculate_vectormap_ap,
+    calculate_chamfer_distance_3d,
+    calculate_frechet_distance_3d,
+    calculate_online_lane_segment_metric,
+    calculate_per_category_metrics,
 )
 
 
@@ -523,5 +527,296 @@ class TestVectormapAP:
         assert ap['map'] > 0.9
 
 
+class TestChamferDistance3D:
+    """Test 3D Chamfer distance for 3D lane polylines."""
+    
+    def test_identical_3d_polylines(self):
+        """Test with identical 3D polylines."""
+        polyline = np.array([[0, 0, 0], [10, 0, 0], [20, 0, 0]])
+        result = calculate_chamfer_distance_3d(polyline, polyline)
+        
+        assert result['chamfer_distance_3d'] == pytest.approx(0.0, abs=1e-6)
+        assert result['chamfer_distance_xy'] == pytest.approx(0.0, abs=1e-6)
+        assert result['elevation_error'] == pytest.approx(0.0, abs=1e-6)
+    
+    def test_elevation_difference(self):
+        """Test with elevation differences."""
+        pred = np.array([[0, 0, 0], [10, 0, 0.5], [20, 0, 1.0]])
+        gt = np.array([[0, 0, 0], [10, 0, 0], [20, 0, 0]])
+        
+        result = calculate_chamfer_distance_3d(pred, gt)
+        
+        # Should have non-zero 3D distance but zero XY distance
+        assert result['chamfer_distance_3d'] > 0
+        assert result['chamfer_distance_xy'] == pytest.approx(0.0, abs=1e-6)
+        assert result['elevation_error'] > 0
+        assert result['elevation_error'] == pytest.approx(0.5, abs=0.1)
+    
+    def test_3d_with_weighted_z(self):
+        """Test with weighted z-axis."""
+        pred = np.array([[0, 0, 0], [10, 0, 1]])
+        gt = np.array([[0, 0, 0], [10, 0, 0]])
+        
+        # Higher weight on z-axis
+        result = calculate_chamfer_distance_3d(pred, gt, weight_z=2.0)
+        assert result['chamfer_distance_3d'] > result['chamfer_distance_xy']
+    
+    def test_2d_input_error(self):
+        """Test that 2D input raises error."""
+        pred = np.array([[0, 0], [10, 0]])
+        gt = np.array([[0, 0], [10, 0]])
+        
+        with pytest.raises(ValueError):
+            calculate_chamfer_distance_3d(pred, gt)
+    
+    def test_empty_3d_polylines(self):
+        """Test with empty 3D polylines."""
+        pred = np.array([]).reshape(0, 3)
+        gt = np.array([[0, 0, 0], [10, 0, 0]])
+        
+        result = calculate_chamfer_distance_3d(pred, gt)
+        assert result['chamfer_distance_3d'] == float('inf')
+
+
+class TestFrechetDistance3D:
+    """Test 3D Fréchet distance."""
+    
+    def test_identical_3d_curves(self):
+        """Test with identical 3D curves."""
+        curve = np.array([[0, 0, 0], [5, 0, 1], [10, 0, 2]])
+        result = calculate_frechet_distance_3d(curve, curve)
+        
+        assert result['frechet_distance_3d'] == pytest.approx(0.0, abs=1e-6)
+    
+    def test_3d_curve_with_elevation(self):
+        """Test curves with elevation differences."""
+        pred = np.array([[0, 0, 0], [5, 0, 1], [10, 0, 2]])
+        gt = np.array([[0, 0, 0.5], [5, 0, 1.5], [10, 0, 2.5]])
+        
+        result = calculate_frechet_distance_3d(pred, gt)
+        
+        # 3D distance should be larger than 2D
+        assert result['frechet_distance_3d'] > result['frechet_distance_xy']
+        assert result['frechet_distance_3d'] == pytest.approx(0.5, abs=0.1)
+    
+    def test_weighted_z_frechet(self):
+        """Test with weighted z-axis."""
+        pred = np.array([[0, 0, 0], [10, 0, 2]])
+        gt = np.array([[0, 0, 0], [10, 0, 0]])
+        
+        result_normal = calculate_frechet_distance_3d(pred, gt, weight_z=1.0)
+        result_weighted = calculate_frechet_distance_3d(pred, gt, weight_z=3.0)
+        
+        assert result_weighted['frechet_distance_3d'] > result_normal['frechet_distance_3d']
+    
+    def test_2d_input_error_frechet(self):
+        """Test that 2D input raises error."""
+        pred = np.array([[0, 0], [10, 0]])
+        gt = np.array([[0, 0], [10, 0]])
+        
+        with pytest.raises(ValueError):
+            calculate_frechet_distance_3d(pred, gt)
+
+
+class TestOnlineLaneSegmentMetric:
+    """Test Online Lane Segment (OLS) metric for temporal consistency."""
+    
+    def test_perfect_temporal_tracking(self):
+        """Test with perfect temporal consistency."""
+        # Same lanes detected across 3 frames
+        lane1 = [
+            np.array([[0, 0], [10, 0]]),
+            np.array([[0, 0], [10, 0]]),
+            np.array([[0, 0], [10, 0]])
+        ]
+        lane2 = [
+            np.array([[0, 3], [10, 3]]),
+            np.array([[0, 3], [10, 3]]),
+            np.array([[0, 3], [10, 3]])
+        ]
+        
+        pred_seq = [[lane1[i], lane2[i]] for i in range(3)]
+        gt_seq = [[lane1[i], lane2[i]] for i in range(3)]
+        
+        result = calculate_online_lane_segment_metric(pred_seq, gt_seq)
+        
+        assert result['ols'] > 0.95
+        assert result['detection_score'] > 0.95
+        assert result['consistency_score'] > 0.95
+        assert result['id_switches'] == 0
+    
+    def test_id_switches(self):
+        """Test detection of identity switches."""
+        # Lane ordering changes between frames
+        pred_frame1 = [
+            np.array([[0, 0], [10, 0]]),
+            np.array([[0, 3], [10, 3]])
+        ]
+        pred_frame2 = [
+            np.array([[0, 3], [10, 3]]),  # Swapped order
+            np.array([[0, 0], [10, 0]])
+        ]
+        
+        gt_frame1 = [
+            np.array([[0, 0], [10, 0]]),
+            np.array([[0, 3], [10, 3]])
+        ]
+        gt_frame2 = [
+            np.array([[0, 0], [10, 0]]),
+            np.array([[0, 3], [10, 3]])
+        ]
+        
+        pred_seq = [pred_frame1, pred_frame2]
+        gt_seq = [gt_frame1, gt_frame2]
+        
+        result = calculate_online_lane_segment_metric(pred_seq, gt_seq)
+        
+        # Should have good detection but lower consistency due to ID switches
+        assert result['detection_score'] > 0.9
+        assert result['consistency_score'] < result['detection_score']
+        assert result['id_switches'] > 0
+    
+    def test_single_frame(self):
+        """Test with single frame (no temporal info)."""
+        pred_seq = [[np.array([[0, 0], [10, 0]])]]
+        gt_seq = [[np.array([[0, 0], [10, 0]])]]
+        
+        result = calculate_online_lane_segment_metric(pred_seq, gt_seq)
+        
+        assert result['ols'] > 0.9
+        assert result['id_switches'] == 0
+    
+    def test_empty_sequence(self):
+        """Test with empty sequence."""
+        result = calculate_online_lane_segment_metric([], [])
+        
+        assert result['ols'] == 0.0
+        assert result['id_switches'] == 0
+    
+    def test_missed_detections(self):
+        """Test with missed detections in some frames."""
+        pred_frame1 = [np.array([[0, 0], [10, 0]])]
+        pred_frame2 = []  # Missed detection
+        pred_frame3 = [np.array([[0, 0], [10, 0]])]
+        
+        gt_frame1 = [np.array([[0, 0], [10, 0]])]
+        gt_frame2 = [np.array([[0, 0], [10, 0]])]
+        gt_frame3 = [np.array([[0, 0], [10, 0]])]
+        
+        pred_seq = [pred_frame1, pred_frame2, pred_frame3]
+        gt_seq = [gt_frame1, gt_frame2, gt_frame3]
+        
+        result = calculate_online_lane_segment_metric(pred_seq, gt_seq)
+        
+        # Should have lower scores due to missed detection
+        assert result['ols'] < 0.9
+        assert result['avg_recall'] < 1.0
+
+
+class TestPerCategoryMetrics:
+    """Test per-category vector map metrics."""
+    
+    def test_multi_category_evaluation(self):
+        """Test evaluation across multiple categories."""
+        pred = [
+            {'polyline': np.array([[0, 0], [10, 0]]), 'category': 'lane_divider', 'score': 0.9},
+            {'polyline': np.array([[0, 3], [10, 3]]), 'category': 'road_edge', 'score': 0.8},
+            {'polyline': np.array([[0, 6], [10, 6]]), 'category': 'lane_divider', 'score': 0.7}
+        ]
+        
+        gt = [
+            {'polyline': np.array([[0, 0.1], [10, 0.1]]), 'category': 'lane_divider'},
+            {'polyline': np.array([[0, 3.1], [10, 3.1]]), 'category': 'road_edge'},
+            {'polyline': np.array([[0, 6.1], [10, 6.1]]), 'category': 'lane_divider'}
+        ]
+        
+        result = calculate_per_category_metrics(
+            pred, gt, 
+            categories=['lane_divider', 'road_edge']
+        )
+        
+        assert 'lane_divider' in result
+        assert 'road_edge' in result
+        assert 'overall' in result
+        
+        # Lane divider: 2 correct out of 2
+        assert result['lane_divider']['precision'] == 1.0
+        assert result['lane_divider']['recall'] == 1.0
+        assert result['lane_divider']['num_gt'] == 2
+        
+        # Road edge: 1 correct out of 1
+        assert result['road_edge']['precision'] == 1.0
+        assert result['road_edge']['recall'] == 1.0
+        assert result['road_edge']['num_gt'] == 1
+        
+        # Overall should aggregate
+        assert result['overall']['precision'] == 1.0
+        assert result['overall']['num_categories'] == 2
+    
+    def test_missing_category(self):
+        """Test with missing predictions for a category."""
+        pred = [
+            {'polyline': np.array([[0, 0], [10, 0]]), 'category': 'lane_divider', 'score': 0.9}
+        ]
+        
+        gt = [
+            {'polyline': np.array([[0, 0.1], [10, 0.1]]), 'category': 'lane_divider'},
+            {'polyline': np.array([[0, 3.1], [10, 3.1]]), 'category': 'crosswalk'}
+        ]
+        
+        result = calculate_per_category_metrics(
+            pred, gt,
+            categories=['lane_divider', 'crosswalk']
+        )
+        
+        # Crosswalk has GT but no predictions
+        assert result['crosswalk']['precision'] == 1.0  # No FP
+        assert result['crosswalk']['recall'] == 0.0  # All FN
+        assert result['crosswalk']['num_pred'] == 0
+        assert result['crosswalk']['num_gt'] == 1
+    
+    def test_false_positives_per_category(self):
+        """Test with false positives in a category."""
+        pred = [
+            {'polyline': np.array([[0, 0], [10, 0]]), 'category': 'lane_divider', 'score': 0.9},
+            {'polyline': np.array([[0, 20], [10, 20]]), 'category': 'lane_divider', 'score': 0.5}  # FP
+        ]
+        
+        gt = [
+            {'polyline': np.array([[0, 0.1], [10, 0.1]]), 'category': 'lane_divider'}
+        ]
+        
+        result = calculate_per_category_metrics(
+            pred, gt,
+            categories=['lane_divider'],
+            distance_threshold=1.0
+        )
+        
+        # Should have 1 TP and 1 FP
+        assert result['lane_divider']['precision'] == 0.5  # 1/(1+1)
+        assert result['lane_divider']['recall'] == 1.0  # 1/1
+        assert result['lane_divider']['num_pred'] == 2
+    
+    def test_empty_categories(self):
+        """Test with categories that have no GT or predictions."""
+        pred = []
+        gt = []
+        
+        result = calculate_per_category_metrics(
+            pred, gt,
+            categories=['lane_divider', 'road_edge']
+        )
+        
+        # Both categories empty
+        assert result['lane_divider']['precision'] == 1.0
+        assert result['lane_divider']['recall'] == 1.0
+        assert result['road_edge']['precision'] == 1.0
+        assert result['road_edge']['recall'] == 1.0
+        
+        # Overall should reflect no valid categories
+        assert result['overall']['num_categories'] == 0
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
+

@@ -9,6 +9,9 @@ from admetrics.occupancy import (
     calculate_scene_completion,
     calculate_chamfer_distance,
     calculate_surface_distance,
+    calculate_visibility_weighted_iou,
+    calculate_panoptic_quality,
+    calculate_video_panoptic_quality,
 )
 
 
@@ -448,5 +451,230 @@ class TestEdgeCases:
         gt = np.random.randint(0, 20, size=(30, 30, 30))
         
         result = calculate_mean_iou(pred, gt, num_classes=20)
-        assert 'mIoU' in result
+        assert 0 <= result['mIoU'] <= 1
         assert len(result['class_iou']) == 20
+
+
+class TestVisibilityWeightedIoU:
+    """Test visibility-weighted IoU calculation."""
+    
+    def test_with_visibility_mask(self):
+        """Test with explicit visibility mask."""
+        pred = np.zeros((10, 10, 5), dtype=int)
+        gt = np.zeros((10, 10, 5), dtype=int)
+        
+        # Set some voxels to class 1
+        pred[3:7, 3:7, 1:3] = 1
+        gt[4:8, 4:8, 1:3] = 1
+        
+        # Create visibility mask (closer voxels more visible)
+        vis_mask = np.ones((10, 10, 5))
+        vis_mask[:, :, 3:] = 0.5  # Far voxels less visible
+        
+        result = calculate_visibility_weighted_iou(pred, gt, vis_mask, num_classes=2)
+        
+        assert 'visibility_weighted_mIoU' in result
+        assert 0 <= result['visibility_weighted_mIoU'] <= 1
+        assert 'visible_voxel_ratio' in result
+    
+    def test_without_visibility_mask(self):
+        """Test with automatic distance-based visibility."""
+        pred = np.random.randint(0, 5, size=(20, 20, 10))
+        gt = np.random.randint(0, 5, size=(20, 20, 10))
+        
+        result = calculate_visibility_weighted_iou(pred, gt, num_classes=5)
+        
+        assert 'visibility_weighted_mIoU' in result
+        assert 0 <= result['visibility_weighted_mIoU'] <= 1
+        assert 'class_iou' in result
+        assert len(result['class_iou']) == 5
+    
+    def test_perfect_match_weighted(self):
+        """Test perfect prediction with visibility weighting."""
+        pred = np.random.randint(0, 3, size=(10, 10, 5))
+        gt = pred.copy()
+        
+        result = calculate_visibility_weighted_iou(pred, gt, num_classes=3)
+        
+        # Should be close to 1.0 for perfect match
+        assert result['visibility_weighted_mIoU'] > 0.95
+
+
+class TestPanopticQuality:
+    """Test Panoptic Quality calculation."""
+    
+    def test_perfect_panoptic_match(self):
+        """Test PQ with perfect prediction."""
+        # Create semantic occupancy
+        pred_sem = np.zeros((10, 10, 5), dtype=int)
+        gt_sem = np.zeros((10, 10, 5), dtype=int)
+        
+        # Create instances
+        pred_inst = np.zeros((10, 10, 5), dtype=int)
+        gt_inst = np.zeros((10, 10, 5), dtype=int)
+        
+        # Add some instances of class 1 (vehicle)
+        pred_sem[2:5, 2:5, 1:3] = 1
+        gt_sem[2:5, 2:5, 1:3] = 1
+        pred_inst[2:5, 2:5, 1:3] = 1  # Instance ID 1
+        gt_inst[2:5, 2:5, 1:3] = 1
+        
+        # Add stuff class (road)
+        pred_sem[0:2, :, 0:1] = 0
+        gt_sem[0:2, :, 0:1] = 0
+        
+        result = calculate_panoptic_quality(
+            pred_sem, pred_inst, gt_sem, gt_inst,
+            num_classes=2, stuff_classes=[0]
+        )
+        
+        assert 'PQ' in result
+        assert 'SQ' in result
+        assert 'RQ' in result
+        assert result['PQ'] > 0.9  # Should be very high for perfect match
+    
+    def test_panoptic_with_multiple_instances(self):
+        """Test PQ with multiple instances."""
+        pred_sem = np.zeros((20, 20, 10), dtype=int)
+        gt_sem = np.zeros((20, 20, 10), dtype=int)
+        pred_inst = np.zeros((20, 20, 10), dtype=int)
+        gt_inst = np.zeros((20, 20, 10), dtype=int)
+        
+        # Add 3 vehicle instances
+        for i in range(3):
+            x_start = i * 6
+            pred_sem[x_start:x_start+4, 5:9, 2:5] = 1
+            gt_sem[x_start:x_start+4, 5:9, 2:5] = 1
+            pred_inst[x_start:x_start+4, 5:9, 2:5] = i + 1
+            gt_inst[x_start:x_start+4, 5:9, 2:5] = i + 1
+        
+        result = calculate_panoptic_quality(
+            pred_sem, pred_inst, gt_sem, gt_inst,
+            num_classes=2, stuff_classes=[0]
+        )
+        
+        assert result['PQ'] > 0.9
+        assert result['PQ_thing'] > 0.9
+        assert 'per_class_pq' in result
+    
+    def test_panoptic_false_positives(self):
+        """Test PQ with false positive instances."""
+        pred_sem = np.zeros((15, 15, 8), dtype=int)
+        gt_sem = np.zeros((15, 15, 8), dtype=int)
+        pred_inst = np.zeros((15, 15, 8), dtype=int)
+        gt_inst = np.zeros((15, 15, 8), dtype=int)
+        
+        # GT has 1 instance
+        gt_sem[5:10, 5:10, 2:5] = 1
+        gt_inst[5:10, 5:10, 2:5] = 1
+        
+        # Prediction has 2 instances (1 FP)
+        pred_sem[5:10, 5:10, 2:5] = 1
+        pred_inst[5:10, 5:10, 2:5] = 1
+        
+        pred_sem[10:13, 10:13, 2:4] = 1  # False positive
+        pred_inst[10:13, 10:13, 2:4] = 2
+        
+        result = calculate_panoptic_quality(
+            pred_sem, pred_inst, gt_sem, gt_inst,
+            num_classes=2, stuff_classes=[0]
+        )
+        
+        # PQ should be lower due to FP
+        assert 0 < result['PQ'] < 1.0
+        assert result['RQ'] < 1.0  # Recognition quality penalized
+
+
+class TestVideoPanopticQuality:
+    """Test Video Panoptic Quality calculation."""
+    
+    def test_vpq_perfect_sequence(self):
+        """Test VPQ with perfect temporal consistency."""
+        # Create a 5-frame sequence
+        num_frames = 5
+        pred_seq = []
+        gt_seq = []
+        pred_inst_seq = []
+        gt_inst_seq = []
+        
+        for t in range(num_frames):
+            # Moving instance (simulating a moving vehicle)
+            pred_sem = np.zeros((15, 15, 8), dtype=int)
+            gt_sem = np.zeros((15, 15, 8), dtype=int)
+            pred_inst = np.zeros((15, 15, 8), dtype=int)
+            gt_inst = np.zeros((15, 15, 8), dtype=int)
+            
+            # Instance moves along x-axis
+            x_pos = 3 + t
+            pred_sem[x_pos:x_pos+3, 5:8, 2:5] = 1
+            gt_sem[x_pos:x_pos+3, 5:8, 2:5] = 1
+            pred_inst[x_pos:x_pos+3, 5:8, 2:5] = 1  # Same ID across frames
+            gt_inst[x_pos:x_pos+3, 5:8, 2:5] = 1
+            
+            pred_seq.append(pred_sem)
+            gt_seq.append(gt_sem)
+            pred_inst_seq.append(pred_inst)
+            gt_inst_seq.append(gt_inst)
+        
+        result = calculate_video_panoptic_quality(
+            pred_seq, pred_inst_seq, gt_seq, gt_inst_seq,
+            num_classes=2, stuff_classes=[0]
+        )
+        
+        assert 'VPQ' in result
+        assert 'STQ' in result
+        assert 'AQ' in result
+        assert result['VPQ'] > 0.8  # High for perfect temporal consistency
+        assert result['AQ'] > 0.9  # High association quality
+    
+    def test_vpq_id_switches(self):
+        """Test VPQ with ID switches (poor temporal consistency)."""
+        num_frames = 4
+        pred_seq = []
+        gt_seq = []
+        pred_inst_seq = []
+        gt_inst_seq = []
+        
+        for t in range(num_frames):
+            pred_sem = np.zeros((12, 12, 6), dtype=int)
+            gt_sem = np.zeros((12, 12, 6), dtype=int)
+            pred_inst = np.zeros((12, 12, 6), dtype=int)
+            gt_inst = np.zeros((12, 12, 6), dtype=int)
+            
+            # GT uses consistent ID
+            gt_sem[4:8, 4:8, 2:4] = 1
+            gt_inst[4:8, 4:8, 2:4] = 1
+            
+            # Prediction switches IDs between frames
+            pred_sem[4:8, 4:8, 2:4] = 1
+            pred_inst[4:8, 4:8, 2:4] = (t % 2) + 1  # Alternates between ID 1 and 2
+            
+            pred_seq.append(pred_sem)
+            gt_seq.append(gt_sem)
+            pred_inst_seq.append(pred_inst)
+            gt_inst_seq.append(gt_inst)
+        
+        result = calculate_video_panoptic_quality(
+            pred_seq, pred_inst_seq, gt_seq, gt_inst_seq,
+            num_classes=2, stuff_classes=[0]
+        )
+        
+        # Association quality should be lower due to ID switches
+        assert result['AQ'] < 0.9
+        assert len(result['per_frame_pq']) == num_frames
+    
+    def test_vpq_single_frame(self):
+        """Test VPQ with single frame (edge case)."""
+        pred_sem = np.random.randint(0, 3, size=(10, 10, 5))
+        pred_inst = np.random.randint(0, 5, size=(10, 10, 5))
+        gt_sem = np.random.randint(0, 3, size=(10, 10, 5))
+        gt_inst = np.random.randint(0, 5, size=(10, 10, 5))
+        
+        result = calculate_video_panoptic_quality(
+            [pred_sem], [pred_inst], [gt_sem], [gt_inst],
+            num_classes=3, stuff_classes=[0]
+        )
+        
+        assert 'VPQ' in result
+        assert len(result['per_frame_pq']) == 1
+

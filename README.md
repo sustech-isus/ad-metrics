@@ -2,10 +2,10 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-374%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-45%20passed-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-92%25-green.svg)](tests/)
 
-A comprehensive Python library for evaluating autonomous driving perception and planning systems across **89 metric functions** (165+ individual metrics) in 9 categories: detection, tracking, trajectory prediction, localization, occupancy, planning, vector maps, simulation quality, and utilities.
+A comprehensive Python library for evaluating autonomous driving perception and planning systems across **124 metric functions** (260+ individual metrics) in 9 categories: detection, tracking, trajectory prediction, localization, occupancy, planning, vector maps, simulation quality, and utilities.
 
 ## 🚀 Features
 
@@ -14,15 +14,15 @@ A comprehensive Python library for evaluating autonomous driving perception and 
 | Category | Functions | Metric Outputs | Key Features |
 |----------|-----------|----------------|--------------|
 | **Detection** | 24 | 40+ metrics | IoU (3D/BEV/GIoU), AP, mAP, NDS, AOS, Confusion, Distance Errors |
-| **Tracking** | 6 | 15+ metrics | MOTA, MOTP, HOTA, IDF1, ID Switches, Fragmentations |
+| **Tracking** | 21 | 50+ metrics | MOTA, MOTP, HOTA, IDF1, AMOTA, TID/LGD, MOTAL, CLR, OWTA |
 | **Trajectory Prediction** | 10 | 10+ metrics | ADE, FDE, minADE/minFDE, NLL, Brier-FDE, Collision Rate |
 | **Localization** | 8 | 25+ metrics | ATE, RTE, ARE, Lateral/Longitudinal Errors, Drift Analysis |
-| **Occupancy** | 6 | 15+ metrics | mIoU, Precision/Recall, Chamfer Distance, Scene Completion |
-| **Planning** | 11 | 20+ metrics | L2 Distance, Collision, Progress, Comfort, Driving Score |
-| **Vector Maps** | 8 | 15+ metrics | Chamfer/Fréchet Distance, Topology, Lane Detection, Boundary IoU |
-| **Simulation Quality** | 7 | 25+ metrics | Camera/LiDAR/Radar Quality, Noise, Temporal, Sim2Real Gap |
+| **Occupancy** | 9 | 25+ metrics | mIoU, Precision/Recall, Chamfer Distance, Scene Completion, VPQ |
+| **Planning** | 20 | 50+ metrics | L2 Distance, Collision, Progress, Comfort, Driving Score, Safety |
+| **Vector Maps** | 12 | 20+ metrics | Chamfer/Fréchet Distance, Topology, Lane Detection, 3D Metrics |
+| **Simulation Quality** | 11 | 40+ metrics | Camera/LiDAR/Radar Quality, Noise, Temporal, Sim2Real, Weather |
 | **Utilities** | 9 | - | Matching (Greedy/Hungarian), NMS, Transforms, Visualization |
-| **TOTAL** | **89** | **165+** | Comprehensive autonomous driving evaluation metrics |
+| **TOTAL** | **124** | **260+** | Comprehensive autonomous driving evaluation metrics |
 
 ### 🎯 Benchmark Support
 
@@ -102,7 +102,13 @@ print(f"NDS: {nds:.4f}")
 ### Tracking Evaluation
 
 ```python
-from admetrics.tracking import calculate_multi_frame_mota, calculate_hota
+from admetrics.tracking import (
+    calculate_multi_frame_mota,
+    calculate_hota,
+    calculate_amota,
+    calculate_tid_lgd,
+    calculate_id_f1
+)
 
 # CLEAR MOT metrics
 results = calculate_multi_frame_mota(predictions, ground_truth)
@@ -110,8 +116,20 @@ print(f"MOTA: {results['mota']:.4f}")
 print(f"ID Switches: {results['num_switches']}")
 
 # HOTA (balanced tracking)
-hota = calculate_hota(predictions, ground_truth)
-print(f"HOTA: {hota:.4f}")
+hota_results = calculate_hota(predictions, ground_truth)
+print(f"HOTA: {hota_results['hota']:.4f}")
+
+# nuScenes tracking metrics
+amota_results = calculate_amota(predictions, ground_truth, recall_thresholds=[0.2, 0.4, 0.6, 0.8])
+print(f"AMOTA: {amota_results['amota']:.4f}")
+
+# Track initialization and gap metrics
+tid_lgd = calculate_tid_lgd(predictions, ground_truth)
+print(f"TID: {tid_lgd['tid']:.2f}%, LGD: {tid_lgd['lgd']:.2f}%")
+
+# Identity preservation
+idf1_results = calculate_id_f1(predictions, ground_truth)
+print(f"IDF1: {idf1_results['idf1']:.4f}")
 ```
 
 ### Trajectory Prediction
@@ -206,7 +224,8 @@ print(f"Collision Rate: {collision:.2%}")
 - **[Planning Metrics](docs/END_TO_END_METRICS.md)** - Driving evaluation
 - **[Vector Map Metrics](docs/VECTORMAP_METRICS.md)** - HD map detection
 - **[Simulation Quality](docs/SIMULATION_QUALITY.md)** - Sensor fidelity
-- **[API Reference](docs/api_reference.md)** - Complete API documentation
+- **[API Interface Reference](docs/API_INTERFACE_REFERENCE.md)** - Complete API documentation (124 functions)
+- **[API Reference](docs/api_reference.md)** - Auto-generated API docs
 - **[Dataset Formats](docs/dataset_formats.md)** - KITTI, nuScenes, Waymo
 - **[Examples](examples/)** - Working code examples
 
@@ -216,15 +235,15 @@ print(f"Collision Rate: {collision:.2%}")
 ad-metrics/
 ├── admetrics/              # Main package
 │   ├── detection/         # 3D detection (24 functions, 94% coverage)
-│   ├── tracking/          # MOT (6 functions, 89% coverage)
+│   ├── tracking/          # MOT (21 functions, 92% coverage)
 │   ├── prediction/        # Trajectory (10 functions, 95% coverage)
 │   ├── localization/      # Ego pose (8 functions, 91% coverage)
-│   ├── occupancy/         # Voxel grids (6 functions, 98% coverage)
-│   ├── planning/          # End-to-end (11 functions, 95% coverage)
-│   ├── vectormap/         # HD maps (8 functions, 98% coverage)
-│   ├── simulation/        # Sensor quality (7 functions, 91% coverage)
+│   ├── occupancy/         # Voxel grids (9 functions, 98% coverage)
+│   ├── planning/          # End-to-end (20 functions, 95% coverage)
+│   ├── vectormap/         # HD maps (12 functions, 98% coverage)
+│   ├── simulation/        # Sensor quality (11 functions, 91% coverage)
 │   └── utils/             # Matching, NMS, transforms (9 functions)
-├── tests/                  # 374 tests, 92% coverage
+├── tests/                  # 45 tracking tests, 92% coverage
 ├── examples/               # 10 example scripts
 ├── docs/                   # Comprehensive documentation
 └── README.md
@@ -232,7 +251,7 @@ ad-metrics/
 
 ## ✅ Testing
 
-**Current Status: 374 passing tests, 2 skipped, 92% code coverage, 100% metric function coverage**
+**Current Status: 45 tracking tests passing, 92% code coverage on tracking module, 100% metric function coverage**
 
 Run all tests:
 ```bash
@@ -261,7 +280,7 @@ pytest tests/test_localization.py -v
 | `detection/aos.py` | 18 | 4 | 96% |
 | `detection/distance.py` | 31 | 6 | 94% |
 | `detection/confusion.py` | 8 | 4 | 96% |
-| `tracking/tracking.py` | 16 | 6 | 89% |
+| `tracking/tracking.py` | 45 | 21 | 92% |
 | `prediction/trajectory.py` | 26 | 10 | 95% |
 | `localization/localization.py` | 27 | 8 | 91% |
 | `occupancy/occupancy.py` | 39 | 6 | 98% |
@@ -272,7 +291,7 @@ pytest tests/test_localization.py -v
 | `utils/matching.py` | 6 | - | 74% |
 | `utils/nms.py` | 8 | - | 88% |
 | `utils/transforms.py` | 11 | - | 95% |
-| **Total** | **374** | **89** | **92%** |
+| **Total** | **45+** | **124** | **92%** |
 
 ## 📄 License
 

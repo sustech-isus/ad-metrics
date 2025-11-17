@@ -11,8 +11,9 @@ Used in: nuScenes Map, Argoverse 2 Map, OpenLane-V2, MapTR, HDMapNet, VectorMapN
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from scipy.spatial.distance import directed_hausdorff, cdist
+from collections import defaultdict
 
 
 def calculate_chamfer_distance_polyline(
@@ -643,3 +644,457 @@ def calculate_vectormap_ap(
     results['map'] = float(np.mean(aps))
     
     return results
+
+
+def calculate_chamfer_distance_3d(
+    pred_polyline: np.ndarray,
+    gt_polyline: np.ndarray,
+    max_distance: Optional[float] = None,
+    weight_z: float = 1.0
+) -> Dict[str, float]:
+    """
+    Calculate 3D Chamfer Distance for 3D lane polylines with elevation.
+    
+    Used in OpenLane-V2 for 3D lane detection evaluation.
+    
+    Args:
+        pred_polyline: Predicted 3D polyline, shape (N, 3) with [x, y, z]
+        gt_polyline: Ground truth 3D polyline, shape (M, 3) with [x, y, z]
+        max_distance: Optional maximum distance threshold for filtering
+        weight_z: Weight for z-axis (elevation) differences, default 1.0
+        
+    Returns:
+        Dictionary with:
+            - chamfer_distance_3d: 3D chamfer distance
+            - chamfer_distance_xy: 2D (horizontal) chamfer distance
+            - elevation_error: Mean absolute elevation error
+            - chamfer_pred_to_gt: Forward distance
+            - chamfer_gt_to_pred: Backward distance
+            
+    Example:
+        >>> pred = np.array([[0, 0, 0], [10, 0, 0.5]])
+        >>> gt = np.array([[0, 0, 0.1], [10, 0, 0.4]])
+        >>> result = calculate_chamfer_distance_3d(pred, gt)
+    """
+    if len(pred_polyline) == 0 or len(gt_polyline) == 0:
+        return {
+            'chamfer_distance_3d': float('inf'),
+            'chamfer_distance_xy': float('inf'),
+            'elevation_error': float('inf'),
+            'chamfer_pred_to_gt': float('inf'),
+            'chamfer_gt_to_pred': float('inf')
+        }
+    
+    # Ensure 3D input
+    if pred_polyline.shape[1] != 3 or gt_polyline.shape[1] != 3:
+        raise ValueError("Polylines must be 3D (N, 3) for 3D Chamfer distance")
+    
+    # Weight z-axis if specified (ensure float type)
+    pred_weighted = pred_polyline.astype(np.float64).copy()
+    gt_weighted = gt_polyline.astype(np.float64).copy()
+    pred_weighted[:, 2] *= weight_z
+    gt_weighted[:, 2] *= weight_z
+    
+    # Compute 3D distance matrix
+    dist_matrix_3d = cdist(pred_weighted, gt_weighted)
+    
+    # Pred to GT
+    min_dist_pred_to_gt = np.min(dist_matrix_3d, axis=1)
+    chamfer_pred_to_gt = np.mean(min_dist_pred_to_gt)
+    
+    # GT to Pred
+    min_dist_gt_to_pred = np.min(dist_matrix_3d, axis=0)
+    chamfer_gt_to_pred = np.mean(min_dist_gt_to_pred)
+    
+    # Symmetric 3D Chamfer
+    chamfer_3d = (chamfer_pred_to_gt + chamfer_gt_to_pred) / 2
+    
+    # Also compute 2D (XY) chamfer for reference
+    dist_matrix_xy = cdist(pred_polyline[:, :2], gt_polyline[:, :2])
+    chamfer_xy = (np.mean(np.min(dist_matrix_xy, axis=1)) + 
+                  np.mean(np.min(dist_matrix_xy, axis=0))) / 2
+    
+    # Elevation error: find closest XY points and compare Z
+    closest_gt_indices = np.argmin(dist_matrix_xy, axis=1)
+    elevation_diffs = np.abs(pred_polyline[:, 2] - gt_polyline[closest_gt_indices, 2])
+    elevation_error = np.mean(elevation_diffs)
+    
+    return {
+        'chamfer_distance_3d': float(chamfer_3d),
+        'chamfer_distance_xy': float(chamfer_xy),
+        'elevation_error': float(elevation_error),
+        'chamfer_pred_to_gt': float(chamfer_pred_to_gt),
+        'chamfer_gt_to_pred': float(chamfer_gt_to_pred)
+    }
+
+
+def calculate_frechet_distance_3d(
+    pred_polyline: np.ndarray,
+    gt_polyline: np.ndarray,
+    weight_z: float = 1.0
+) -> Dict[str, float]:
+    """
+    Calculate 3D Fréchet Distance for 3D lane polylines.
+    
+    Extends Fréchet distance to 3D space with elevation awareness.
+    
+    Args:
+        pred_polyline: Predicted 3D polyline, shape (N, 3)
+        gt_polyline: Ground truth 3D polyline, shape (M, 3)
+        weight_z: Weight for z-axis differences
+        
+    Returns:
+        Dictionary with:
+            - frechet_distance_3d: 3D Fréchet distance
+            - frechet_distance_xy: 2D Fréchet distance (for reference)
+            
+    Example:
+        >>> pred = np.array([[0, 0, 0], [5, 0, 1], [10, 0, 2]])
+        >>> gt = np.array([[0, 0, 0.1], [5, 0, 1.1], [10, 0, 2.1]])
+        >>> result = calculate_frechet_distance_3d(pred, gt)
+    """
+    if len(pred_polyline) == 0 or len(gt_polyline) == 0:
+        return {
+            'frechet_distance_3d': float('inf'),
+            'frechet_distance_xy': float('inf')
+        }
+    
+    if pred_polyline.shape[1] != 3 or gt_polyline.shape[1] != 3:
+        raise ValueError("Polylines must be 3D (N, 3)")
+    
+    # Weight z-axis (ensure float type)
+    pred_weighted = pred_polyline.astype(np.float64).copy()
+    gt_weighted = gt_polyline.astype(np.float64).copy()
+    pred_weighted[:, 2] *= weight_z
+    gt_weighted[:, 2] *= weight_z
+    
+    # Compute 3D Fréchet distance using dynamic programming
+    n = len(pred_weighted)
+    m = len(gt_weighted)
+    
+    # Distance matrix
+    dist_matrix = np.zeros((n, m))
+    for i in range(n):
+        for j in range(m):
+            dist_matrix[i, j] = np.linalg.norm(pred_weighted[i] - gt_weighted[j])
+    
+    # DP table for Fréchet distance
+    ca = np.full((n, m), -1.0)
+    
+    def compute_frechet(i, j):
+        if ca[i, j] > -1:
+            return ca[i, j]
+        
+        if i == 0 and j == 0:
+            ca[i, j] = dist_matrix[i, j]
+        elif i > 0 and j == 0:
+            ca[i, j] = max(compute_frechet(i-1, 0), dist_matrix[i, 0])
+        elif i == 0 and j > 0:
+            ca[i, j] = max(compute_frechet(0, j-1), dist_matrix[0, j])
+        elif i > 0 and j > 0:
+            ca[i, j] = max(
+                min(compute_frechet(i-1, j), compute_frechet(i-1, j-1), compute_frechet(i, j-1)),
+                dist_matrix[i, j]
+            )
+        else:
+            ca[i, j] = float('inf')
+        
+        return ca[i, j]
+    
+    frechet_3d = compute_frechet(n-1, m-1)
+    
+    # Also compute 2D Fréchet for reference
+    frechet_2d = calculate_frechet_distance(pred_polyline[:, :2], gt_polyline[:, :2])
+    
+    return {
+        'frechet_distance_3d': float(frechet_3d),
+        'frechet_distance_xy': float(frechet_2d)
+    }
+
+
+def calculate_online_lane_segment_metric(
+    pred_lanes_sequence: List[List[np.ndarray]],
+    gt_lanes_sequence: List[List[np.ndarray]],
+    distance_threshold: float = 1.0,
+    iou_threshold: float = 0.5,
+    consistency_weight: float = 0.3
+) -> Dict[str, float]:
+    """
+    Calculate Online Lane Segment (OLS) metric for temporal consistency.
+    
+    Evaluates both detection quality and temporal tracking consistency
+    across frames. Used in OpenLane-V2 for online HD map construction.
+    
+    Args:
+        pred_lanes_sequence: List of predicted lanes per frame, each frame is List[np.ndarray]
+        gt_lanes_sequence: List of ground truth lanes per frame
+        distance_threshold: Chamfer distance threshold for matching
+        iou_threshold: IoU threshold for matching
+        consistency_weight: Weight for temporal consistency [0, 1]
+        
+    Returns:
+        Dictionary with:
+            - ols: Overall Online Lane Segment score
+            - detection_score: Per-frame detection F1 (average)
+            - consistency_score: Temporal tracking consistency
+            - avg_precision: Average precision across frames
+            - avg_recall: Average recall across frames
+            - id_switches: Number of identity switches
+            
+    Example:
+        >>> # Frame 1, 2, 3 predictions and ground truth
+        >>> pred_seq = [[lane1_f1, lane2_f1], [lane1_f2, lane2_f2], ...]
+        >>> gt_seq = [[lane1_f1, lane2_f1], [lane1_f2, lane2_f2], ...]
+        >>> result = calculate_online_lane_segment_metric(pred_seq, gt_seq)
+    """
+    if len(pred_lanes_sequence) != len(gt_lanes_sequence):
+        raise ValueError("Prediction and GT sequences must have same length")
+    
+    if len(pred_lanes_sequence) == 0:
+        return {
+            'ols': 0.0,
+            'detection_score': 0.0,
+            'consistency_score': 0.0,
+            'avg_precision': 0.0,
+            'avg_recall': 0.0,
+            'id_switches': 0
+        }
+    
+    num_frames = len(pred_lanes_sequence)
+    frame_f1_scores = []
+    frame_precisions = []
+    frame_recalls = []
+    
+    # Track lane IDs across frames for consistency
+    prev_matches = {}  # pred_idx -> gt_idx for previous frame
+    id_switches = 0
+    consistent_tracks = 0
+    total_tracks = 0
+    
+    for frame_idx in range(num_frames):
+        pred_lanes = pred_lanes_sequence[frame_idx]
+        gt_lanes = gt_lanes_sequence[frame_idx]
+        
+        # Calculate per-frame detection metrics
+        frame_metrics = calculate_lane_detection_metrics(
+            pred_lanes, gt_lanes,
+            distance_threshold=distance_threshold,
+            iou_threshold=iou_threshold
+        )
+        
+        frame_f1_scores.append(frame_metrics['f1_score'])
+        frame_precisions.append(frame_metrics['precision'])
+        frame_recalls.append(frame_metrics['recall'])
+        
+        # Track consistency: check if same lanes matched in consecutive frames
+        if frame_idx > 0 and len(pred_lanes) > 0 and len(gt_lanes) > 0:
+            # Compute current frame matches
+            chamfer_matrix = np.zeros((len(pred_lanes), len(gt_lanes)))
+            for i, pred_lane in enumerate(pred_lanes):
+                for j, gt_lane in enumerate(gt_lanes):
+                    result = calculate_chamfer_distance_polyline(pred_lane, gt_lane)
+                    chamfer_matrix[i, j] = result['chamfer_distance']
+            
+            # Find current matches
+            current_matches = {}
+            matched_pred = set()
+            matched_gt = set()
+            
+            pairs = []
+            for i in range(len(pred_lanes)):
+                for j in range(len(gt_lanes)):
+                    pairs.append((chamfer_matrix[i, j], i, j))
+            pairs.sort()
+            
+            for dist, pred_idx, gt_idx in pairs:
+                if pred_idx not in matched_pred and gt_idx not in matched_gt:
+                    if dist <= distance_threshold:
+                        current_matches[pred_idx] = gt_idx
+                        matched_pred.add(pred_idx)
+                        matched_gt.add(gt_idx)
+            
+            # Compare with previous frame
+            for pred_idx, gt_idx in current_matches.items():
+                total_tracks += 1
+                if pred_idx in prev_matches:
+                    if prev_matches[pred_idx] == gt_idx:
+                        consistent_tracks += 1
+                    else:
+                        id_switches += 1
+            
+            prev_matches = current_matches
+        elif len(pred_lanes) > 0 and len(gt_lanes) > 0:
+            # Initialize tracking for first frame
+            chamfer_matrix = np.zeros((len(pred_lanes), len(gt_lanes)))
+            for i, pred_lane in enumerate(pred_lanes):
+                for j, gt_lane in enumerate(gt_lanes):
+                    result = calculate_chamfer_distance_polyline(pred_lane, gt_lane)
+                    chamfer_matrix[i, j] = result['chamfer_distance']
+            
+            matched_pred = set()
+            matched_gt = set()
+            pairs = []
+            for i in range(len(pred_lanes)):
+                for j in range(len(gt_lanes)):
+                    pairs.append((chamfer_matrix[i, j], i, j))
+            pairs.sort()
+            
+            for dist, pred_idx, gt_idx in pairs:
+                if pred_idx not in matched_pred and gt_idx not in matched_gt:
+                    if dist <= distance_threshold:
+                        prev_matches[pred_idx] = gt_idx
+                        matched_pred.add(pred_idx)
+                        matched_gt.add(gt_idx)
+    
+    # Calculate scores
+    avg_f1 = np.mean(frame_f1_scores) if frame_f1_scores else 0.0
+    avg_precision = np.mean(frame_precisions) if frame_precisions else 0.0
+    avg_recall = np.mean(frame_recalls) if frame_recalls else 0.0
+    
+    # Consistency score: ratio of consistent tracks
+    consistency_score = consistent_tracks / total_tracks if total_tracks > 0 else 1.0
+    
+    # OLS: weighted combination of detection and consistency
+    detection_score = avg_f1
+    ols = (1 - consistency_weight) * detection_score + consistency_weight * consistency_score
+    
+    return {
+        'ols': float(ols),
+        'detection_score': float(detection_score),
+        'consistency_score': float(consistency_score),
+        'avg_precision': float(avg_precision),
+        'avg_recall': float(avg_recall),
+        'id_switches': int(id_switches)
+    }
+
+
+def calculate_per_category_metrics(
+    pred_lanes: List[Dict[str, Any]],
+    gt_lanes: List[Dict[str, Any]],
+    categories: List[str],
+    distance_threshold: float = 1.0
+) -> Dict[str, Dict[str, float]]:
+    """
+    Calculate separate metrics for different lane/map element categories.
+    
+    Supports evaluation of:
+    - Lane dividers (dashed, solid)
+    - Road boundaries (curbs, edges)
+    - Crosswalks
+    - Stop lines
+    - Other map elements
+    
+    Args:
+        pred_lanes: List of predicted lane dicts with 'polyline' and 'category'
+        gt_lanes: List of GT lane dicts with 'polyline' and 'category'
+        categories: List of category names to evaluate
+        distance_threshold: Matching threshold in meters
+        
+    Returns:
+        Dictionary with per-category metrics:
+            {
+                'lane_divider': {'precision': ..., 'recall': ..., 'f1': ..., 'ap': ...},
+                'road_edge': {...},
+                'crosswalk': {...},
+                ...
+                'overall': {...}  # Averaged across all categories
+            }
+            
+    Example:
+        >>> pred = [
+        ...     {'polyline': np.array([[0,0],[10,0]]), 'category': 'lane_divider', 'score': 0.9},
+        ...     {'polyline': np.array([[0,3],[10,3]]), 'category': 'road_edge', 'score': 0.8}
+        ... ]
+        >>> gt = [
+        ...     {'polyline': np.array([[0,0.1],[10,0.1]]), 'category': 'lane_divider'},
+        ...     {'polyline': np.array([[0,3.1],[10,3.1]]), 'category': 'road_edge'}
+        ... ]
+        >>> result = calculate_per_category_metrics(pred, gt, ['lane_divider', 'road_edge'])
+    """
+    results = {}
+    
+    # Group by category
+    pred_by_category = defaultdict(list)
+    gt_by_category = defaultdict(list)
+    
+    for pred in pred_lanes:
+        category = pred.get('category', 'unknown')
+        pred_by_category[category].append(pred)
+    
+    for gt in gt_lanes:
+        category = gt.get('category', 'unknown')
+        gt_by_category[category].append(gt)
+    
+    # Evaluate each category
+    all_precisions = []
+    all_recalls = []
+    all_f1s = []
+    all_aps = []
+    
+    for category in categories:
+        pred_cat = pred_by_category.get(category, [])
+        gt_cat = gt_by_category.get(category, [])
+        
+        # Extract polylines
+        pred_polylines = [p['polyline'] for p in pred_cat]
+        gt_polylines = [g['polyline'] for g in gt_cat]
+        
+        if len(gt_polylines) == 0 and len(pred_polylines) == 0:
+            # No GT and no predictions for this category
+            results[category] = {
+                'precision': 1.0,
+                'recall': 1.0,
+                'f1_score': 1.0,
+                'ap': 1.0,
+                'num_pred': 0,
+                'num_gt': 0
+            }
+            continue
+        
+        # Calculate detection metrics
+        det_metrics = calculate_lane_detection_metrics(
+            pred_polylines, gt_polylines,
+            distance_threshold=distance_threshold
+        )
+        
+        # Calculate AP for this category
+        ap_result = calculate_vectormap_ap(
+            pred_cat, gt_cat,
+            distance_thresholds=[distance_threshold]
+        )
+        
+        results[category] = {
+            'precision': det_metrics['precision'],
+            'recall': det_metrics['recall'],
+            'f1_score': det_metrics['f1_score'],
+            'ap': ap_result.get(f'ap_{distance_threshold:.1f}', 0.0),
+            'num_pred': len(pred_polylines),
+            'num_gt': len(gt_polylines)
+        }
+        
+        if len(gt_polylines) > 0:  # Only include in average if GT exists
+            all_precisions.append(det_metrics['precision'])
+            all_recalls.append(det_metrics['recall'])
+            all_f1s.append(det_metrics['f1_score'])
+            all_aps.append(ap_result.get(f'ap_{distance_threshold:.1f}', 0.0))
+    
+    # Overall metrics (macro-average across categories with GT)
+    if len(all_precisions) > 0:
+        results['overall'] = {
+            'precision': float(np.mean(all_precisions)),
+            'recall': float(np.mean(all_recalls)),
+            'f1_score': float(np.mean(all_f1s)),
+            'map': float(np.mean(all_aps)),
+            'num_categories': len(all_precisions)
+        }
+    else:
+        results['overall'] = {
+            'precision': 0.0,
+            'recall': 0.0,
+            'f1_score': 0.0,
+            'map': 0.0,
+            'num_categories': 0
+        }
+    
+    return results
+

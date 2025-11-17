@@ -7,6 +7,9 @@ from .occupancy import (
     calculate_scene_completion,
     calculate_chamfer_distance,
     calculate_surface_distance,
+    calculate_visibility_weighted_iou,
+    calculate_panoptic_quality,
+    calculate_video_panoptic_quality,
 )
 
 __all__ = [
@@ -16,4 +19,7 @@ __all__ = [
     'calculate_scene_completion',
     'calculate_chamfer_distance',
     'calculate_surface_distance',
+    'calculate_visibility_weighted_iou',
+    'calculate_panoptic_quality',
+    'calculate_video_panoptic_quality',
 ]

@@ -1,6 +1,6 @@
 # API Interface Reference
 
-Complete reference of all 98 exported metric calculation interfaces in the `admetrics` library.
+Complete reference of all 105 exported metric calculation interfaces in the `admetrics` library.
 
 ---
 
@@ -9,15 +9,15 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 | Category | Functions | Metric Outputs | Description |
 |----------|-----------|----------------|-------------|
 | **Detection** | 24 | 40+ metrics | IoU, AP, NDS, AOS, Confusion, Distance |
-| **Tracking** | 6 | 15+ metrics | MOTA, MOTP, HOTA, IDF1 |
+| **Tracking** | 21 | 50+ metrics | MOTA, MOTP, HOTA, IDF1, AMOTA, TID/LGD, MOTAL, OWTA |
 | **Trajectory Prediction** | 10 | 10+ metrics | ADE, FDE, Miss Rate, NLL |
 | **Localization** | 8 | 25+ metrics | ATE, RTE, ARE, Lateral/Longitudinal Error |
-| **Occupancy** | 6 | 15+ metrics | IoU, mIoU, Chamfer, Scene Completion |
+| **Occupancy** | 9 | 25+ metrics | IoU, mIoU, Chamfer, Scene Completion, Panoptic Quality, VPQ |
 | **Planning** | 20 | 50+ metrics | L2, Collision, Progress, Comfort, Driving Score, Safety |
-| **Vector Map** | 8 | 15+ metrics | Chamfer, Fréchet, Lane Detection, Topology |
-| **Simulation Quality** | 7 | 25+ metrics | Camera, LiDAR, Radar, Sensor Alignment |
-| **Utility** | 9 | N/A | Transform, Matching, NMS |
-| **TOTAL** | **98** | **195+** | Comprehensive AD evaluation metrics |
+| **Vector Map** | 12 | 20+ metrics | Chamfer, Fréchet, Lane Detection, Topology, 3D Metrics, OLS, Per-Category |
+| **Simulation Quality** | 11 | 40+ metrics | Camera, LiDAR, Radar, Noise, Alignment, Temporal, Sim2Real, Weather, Dynamics, Semantic, Occlusion |
+| **Utility** | 9 | N/A | Transform, Matching, NMS, Visualization |
+| **TOTAL** | **124** | **260+** | Comprehensive AD evaluation metrics |
 
 
 **Note:** Many functions return dictionaries with multiple metrics (e.g., mean, std, min, max), so the total number of individual metric values is much higher than the function count.
@@ -56,16 +56,38 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 
 ---
 
-### Tracking Metrics (6)
+## Tracking Metrics (21)
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 25 | `calculate_mota` | Multiple Object Tracking Accuracy | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `float`: MOTA score | 1 |
-| 26 | `calculate_motp` | Multiple Object Tracking Precision | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `float`: MOTP score | 1 |
-| 27 | `calculate_clear_metrics` | CLEAR MOT metrics (MOTA, MOTP, MT, ML, IDS, etc.) | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `dict`: {'mota', 'motp', 'mt', 'ml', 'ids', 'frag', 'recall', 'precision', 'far', 'num_frames'} | 10 |
-| 28 | `calculate_hota` | Higher Order Tracking Accuracy | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `dict`: {'hota', 'deta', 'assa', 'localization', 'detection'} | 5 |
-| 29 | `calculate_identity_switches` | Count identity switches (ID switches) | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `int`: Number of ID switches | 1 |
-| 30 | `calculate_fragmentations` | Count trajectory fragmentations | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `int`: Number of fragmentations | 1 |
+| 25 | `calculate_mota` | Multiple Object Tracking Accuracy (single frame) | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `dict`: {mota, tp, fp, fn, num_gt} | 5 |
+| 26 | `calculate_motp` | Multiple Object Tracking Precision (single frame) | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `dict`: {motp, num_matches, total_distance} | 3 |
+| 27 | `calculate_clearmot_metrics` | CLEAR MOT metrics (MOTA + MOTP combined) | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `dict`: {mota, motp, tp, fp, fn} | 5 |
+| 28 | `calculate_multi_frame_mota` | MOTA across multiple frames with ID tracking | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {mota, motp, num_matches, num_false_positives, num_misses, num_switches, num_fragmentations, mostly_tracked, partially_tracked, mostly_lost, total_gt, precision, recall} | 12 |
+| 29 | `calculate_hota` | Higher Order Tracking Accuracy | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {hota, deta, assa, detection_re, detection_pr, association_re, association_pr, localization} | 8 |
+| 30 | `calculate_id_f1` | ID F1 Score (identity preservation) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {idf1, idp, idr, idtp, idfp, idfn} | 6 |
+| 31 | `calculate_amota` | Average MOTA (nuScenes primary metric) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`recall_thresholds`: List[float]<br>`iou_threshold`: float = 0.5 | `dict`: {amota, mota_at_recalls, recall_thresholds} | 1 + arrays |
+| 32 | `calculate_motar` | MOTA at Recall threshold | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`recall_threshold`: float = 0.5<br>`iou_threshold`: float = 0.5 | `dict`: {motar, achieved_recall, threshold_used} | 3 |
+| 33 | `calculate_false_alarm_rate` | False Alarms per Frame (FAF) and False Alarm Rate | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {faf, far, total_fp, total_frames, total_gt} | 5 |
+| 34 | `calculate_track_metrics` | Track-level recall and precision | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {track_recall, track_precision, num_matched_gt_tracks, num_matched_pred_tracks, num_gt_tracks, num_pred_tracks} | 6 |
+| 35 | `calculate_moda` | Multiple Object Detection Accuracy (MOTA without ID switches) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {moda, tp, fp, fn, total_gt} | 5 |
+| 36 | `calculate_hota_components` | Full HOTA decomposition with all sub-metrics | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {hota, det_a, det_re, det_pr, ass_a, ass_re, ass_pr, loc_a, tp, fp, fn} | 11 |
+| 37 | `calculate_trajectory_metrics` | Trajectory-level metrics (MT/ML/PT) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5<br>`mt_threshold`: float = 0.8<br>`ml_threshold`: float = 0.2 | `dict`: {mt_ratio, ml_ratio, pt_ratio, mt_count, ml_count, pt_count, total_tracks, avg_coverage, avg_track_length} | 9 |
+| 38 | `calculate_detection_metrics` | Frame-level detection P/R/F1 (no tracking) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {precision, recall, f1, tp, fp, fn} | 6 |
+| 39 | `calculate_smota` | Soft MOTA for segmentation tracking | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5<br>`use_soft_matching`: bool = True | `dict`: {smota, soft_tp_error, num_matches, num_false_positives, num_switches} | 5 |
+| 40 | `calculate_completeness` | GT coverage and detection density | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {gt_covered_ratio, avg_gt_coverage, frame_coverage, detection_density, num_gt_objects, num_detected_objects} | 6 |
+| 41 | `calculate_identity_metrics` | Detailed identity preservation metrics | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {id_switches, id_switch_rate, avg_track_purity, avg_track_completeness, num_fragmentations, fragmentation_rate} | 6 |
+| 42 | `calculate_tid_lgd` | Track Initialization Duration and Longest Gap Duration (nuScenes) | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {tid, lgd, avg_initialization_frames, avg_longest_gap, num_tracks, num_detected_tracks} | 6 |
+| 43 | `calculate_motal` | MOTA with Logarithmic ID Switches | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {motal, mota, tp, fp, fn, id_switches, log_id_switches, num_gt} | 8 |
+| 44 | `calculate_clr_metrics` | CLEAR MOT Recall, Precision, F1 | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {clr_re, clr_pr, clr_f1, tp, fp, fn, num_frames} | 7 |
+| 45 | `calculate_owta` | Open World Tracking Accuracy | `frame_predictions`: Dict[int, List[Dict]]<br>`frame_ground_truth`: Dict[int, List[Dict]]<br>`iou_threshold`: float = 0.5 | `dict`: {owta, det_re, ass_a} | 3 |
+
+**Benchmark Coverage:**
+- **MOTChallenge**: MOTA, MOTP, HOTA, IDF1, MT/ML/PT, Fragmentations, ID Switches ✅
+- **nuScenes**: AMOTA, AMOTP, MOTAR, FAF, TID, LGD ✅
+- **KITTI**: MOTA, MOTP, MT/ML, ID Switches ✅
+- **HOTA Framework**: Full HOTA decomposition (DetA, AssA, LocA) ✅
+- **Open World Tracking**: OWTA ✅
 
 ---
 
@@ -101,16 +123,19 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 
 ---
 
-### Occupancy Metrics (6)
+### Occupancy Metrics (9)
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 49 | `calculate_mean_iou` | Mean Intersection over Union for occupancy grids | `pred_occupancy`: np.ndarray (H, W, D)<br>`gt_occupancy`: np.ndarray (H, W, D)<br>`num_classes`: int = 3 | `dict`: {'miou', 'iou_per_class': dict} | 1 + per class |
-| 50 | `calculate_occupancy_recall` | Recall for occupied cells | `pred_occupancy`: np.ndarray<br>`gt_occupancy`: np.ndarray<br>`class_id`: int = 1 | `float`: Recall [0, 1] | 1 |
-| 51 | `calculate_occupancy_precision` | Precision for occupied cells | `pred_occupancy`: np.ndarray<br>`gt_occupancy`: np.ndarray<br>`class_id`: int = 1 | `float`: Precision [0, 1] | 1 |
-| 52 | `calculate_voxel_accuracy` | Per-voxel classification accuracy | `pred_occupancy`: np.ndarray<br>`gt_occupancy`: np.ndarray | `float`: Accuracy [0, 1] | 1 |
-| 53 | `calculate_occupancy_f1` | F1-score for occupancy classification | `pred_occupancy`: np.ndarray<br>`gt_occupancy`: np.ndarray<br>`class_id`: int = 1 | `float`: F1 score [0, 1] | 1 |
-| 54 | `calculate_occupancy_flow_error` | Flow error for dynamic occupancy | `pred_flow`: np.ndarray (H, W, D, 2/3)<br>`gt_flow`: np.ndarray (H, W, D, 2/3)<br>`mask`: np.ndarray | `dict`: {'mean_epe', 'outlier_rate'} | 2 |
+| 49 | `calculate_occupancy_iou` | IoU for specific class or binary occupancy | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`class_id`: int optional<br>`ignore_index`: int = 255 | `float`: IoU [0, 1] | 1 |
+| 50 | `calculate_mean_iou` | Mean IoU across all semantic classes | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`num_classes`: int<br>`ignore_index`: int = 255<br>`ignore_classes`: List[int] optional | `dict`: {'mIoU', 'class_iou': dict, 'valid_classes'} | 1 + per class |
+| 51 | `calculate_occupancy_precision_recall` | Precision, recall, F1 for occupancy | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`class_id`: int optional<br>`ignore_index`: int = 255 | `dict`: {'precision', 'recall', 'f1', 'true_positives', 'false_positives', 'false_negatives'} | 6 |
+| 52 | `calculate_scene_completion` | Scene completion and SSC metrics | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`free_class`: int = 0<br>`ignore_index`: int = 255 | `dict`: {'SC_IoU', 'SC_Precision', 'SC_Recall', 'SSC_mIoU', 'completion_ratio'} | 5 |
+| 53 | `calculate_chamfer_distance` | Chamfer distance between point clouds | `pred_points`: np.ndarray (N, 3)<br>`gt_points`: np.ndarray (M, 3)<br>`bidirectional`: bool = True | `dict`: {'chamfer_distance', 'chamfer_pred_to_gt', 'chamfer_gt_to_pred'} | 3 |
+| 54 | `calculate_surface_distance` | Surface distance metrics for boundaries | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`voxel_size`: float = 1.0<br>`percentile`: int optional | `dict`: {'mean_surface_distance', 'median_surface_distance', 'std_surface_distance', 'max_surface_distance', 'percentile_distance'} | 5 |
+| 55 | `calculate_visibility_weighted_iou` | Visibility-weighted IoU for sensor-based evaluation | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`visibility_mask`: np.ndarray optional<br>`num_classes`: int = 16<br>`ignore_index`: int = 255 | `dict`: {'visibility_weighted_mIoU', 'class_iou': dict, 'visible_voxel_ratio'} | 2 + per class |
+| 56 | `calculate_panoptic_quality` | Panoptic Quality for instance-aware occupancy | `pred_occupancy`: np.ndarray (X, Y, Z)<br>`pred_instances`: np.ndarray (X, Y, Z)<br>`gt_occupancy`: np.ndarray (X, Y, Z)<br>`gt_instances`: np.ndarray (X, Y, Z)<br>`num_classes`: int = 16<br>`ignore_index`: int = 255<br>`stuff_classes`: List[int] optional | `dict`: {'PQ', 'SQ', 'RQ', 'PQ_stuff', 'PQ_thing', 'per_class_pq', 'per_class_sq', 'per_class_rq'} | 5 + per class |
+| 57 | `calculate_video_panoptic_quality` | Video Panoptic Quality for temporal sequences | `pred_occupancy_seq`: List[np.ndarray]<br>`pred_instances_seq`: List[np.ndarray]<br>`gt_occupancy_seq`: List[np.ndarray]<br>`gt_instances_seq`: List[np.ndarray]<br>`num_classes`: int = 16<br>`ignore_index`: int = 255<br>`stuff_classes`: List[int] optional | `dict`: {'VPQ', 'STQ', 'AQ', 'avg_PQ', 'avg_SQ', 'avg_RQ', 'per_frame_pq'} | 7 + per frame |
 
 ---
 
@@ -118,26 +143,26 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 55 | `calculate_l2_distance` | L2 distance between planned and expert trajectory | `pred_trajectory`: np.ndarray (T, 2/3)<br>`gt_trajectory`: np.ndarray (T, 2/3)<br>`weights`: np.ndarray optional | `float`: Weighted average L2 distance | 1 |
-| 56 | `calculate_collision_rate` | Collision rate and statistics | `trajectory`: np.ndarray (T, 2)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`safety_margin`: float = 0.0 | `dict`: {'collision_rate', 'num_collisions', 'first_collision'} | 3 |
-| 57 | **`calculate_collision_with_fault_classification`** | **NEW**: Collision with at-fault classification (nuPlan) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocities`: np.ndarray (T,)<br>`ego_headings`: np.ndarray (T,)<br>`other_vehicles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'total_collisions', 'at_fault_collisions', 'collision_rate', 'collision_types': Counter} | 5+ (types) |
-| 58 | `calculate_progress_score` | Progress along planned route | `trajectory`: np.ndarray (T, 2)<br>`route`: np.ndarray (N, 2)<br>`distance_threshold`: float = 2.0 | `dict`: {'progress_score', 'distance_traveled', 'progress_ratio'} | 3 |
-| 59 | `calculate_route_completion` | Route completion percentage | `trajectory`: np.ndarray (T, 2)<br>`route_waypoints`: List[np.ndarray]<br>`completion_threshold`: float = 5.0 | `dict`: {'completion_rate', 'completed_waypoints', 'total_waypoints'} | 3 |
-| 60 | `average_displacement_error_planning` | ADE/FDE with multi-horizon support | `pred_trajectory`: np.ndarray (T, 2)<br>`expert_trajectory`: np.ndarray (T, 2)<br>`horizons`: List[int] optional | `dict`: {'ADE', 'FDE', 'ADE_H', 'FDE_H'} per horizon | 2+ (per horizon) |
-| 61 | `calculate_lateral_deviation` | Lateral deviation from reference path | `trajectory`: np.ndarray (T, 2)<br>`reference_path`: np.ndarray (N, 2) | `dict`: {'mean_deviation', 'std_deviation', 'max_deviation'} | 3 |
-| 62 | `calculate_heading_error` | Heading angle error with wrapping | `pred_headings`: np.ndarray (T,)<br>`reference_headings`: np.ndarray (T,) | `dict`: {'mean_error', 'std_error', 'max_error'} | 3 |
-| 63 | `calculate_velocity_error` | Velocity error statistics | `pred_velocities`: np.ndarray (T,)<br>`reference_velocities`: np.ndarray (T,) | `dict`: {'mean_error', 'std_error', 'max_error', 'rmse'} | 4 |
-| 64 | **`calculate_comfort_metrics`** | **UPDATED**: Comprehensive comfort with smoothing | `trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`max_longitudinal_accel`: float = 4.0<br>`max_lateral_accel`: float = 4.0<br>`max_jerk`: float = 4.0<br>`max_yaw_rate`: float = 1.0<br>`max_yaw_accel`: float = 1.0<br>`include_lateral`: bool = True<br>`use_smoothing`: bool = False<br>`smoothing_window`: int = 15<br>`smoothing_order`: int = 2 | `dict`: {'mean_longitudinal_accel', 'max_longitudinal_accel', 'mean_lateral_accel', 'max_lateral_accel', 'mean_jerk', 'max_jerk', 'mean_yaw_rate', 'max_yaw_rate', 'mean_yaw_accel', 'max_yaw_accel', 'comfort_violations', 'comfort_rate'} | 12 |
-| 65 | **`calculate_driving_score`** | **UPDATED**: Composite score with nuPlan mode | `pred_trajectory`: np.ndarray (T, 2)<br>`expert_trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`obstacles`: List[np.ndarray] optional<br>`route`: np.ndarray optional<br>`weights`: Dict optional<br>`mode`: str = 'default' or 'nuplan' | `dict`: {'driving_score', 'planning_accuracy', 'safety_score', 'progress_score', 'comfort_score'} + nuPlan specifics | 5+ |
-| 66 | `calculate_planning_kl_divergence` | KL divergence between trajectory distributions | `pred_distribution`: np.ndarray<br>`expert_distribution`: np.ndarray | `float`: KL divergence value | 1 |
-| 67 | `calculate_time_to_collision` | Basic time-to-collision (TTC) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocity`: np.ndarray (T,)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'min_ttc', 'ttc_violations'} | 2 |
-| 68 | **`calculate_time_to_collision_enhanced`** | **NEW**: Enhanced TTC with forward projection (nuPlan) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocities`: np.ndarray (T,)<br>`ego_headings`: np.ndarray (T,)<br>`timestamps`: np.ndarray (T,)<br>`other_vehicles`: List[np.ndarray]<br>`projection_horizon`: float = 1.0<br>`projection_dt`: float = 0.3<br>`ttc_threshold`: float = 3.0<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'min_ttc', 'mean_ttc', 'ttc_violations', 'ttc_profile'} | 4 |
-| 69 | `calculate_lane_invasion_rate` | Lane invasion/departure rate | `trajectory`: np.ndarray (T, 2)<br>`lane_boundaries`: Tuple[np.ndarray, np.ndarray]<br>`vehicle_width`: float = 2.0 | `dict`: {'invasion_rate', 'num_invasions', 'max_invasion_distance'} | 3 |
-| 70 | `calculate_collision_severity` | Collision severity based on impact | `trajectory`: np.ndarray (T, 2)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`velocities`: np.ndarray optional | `dict`: {'max_severity', 'severities': List} | 2 |
-| 71 | `check_kinematic_feasibility` | Check trajectory kinematic feasibility | `trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`max_velocity`: float = 15.0<br>`max_acceleration`: float = 4.0<br>`max_lateral_accel`: float = 4.0<br>`max_yaw_rate`: float = 0.5 | `dict`: {'feasible': bool, 'max_velocity', 'max_acceleration', 'max_lateral_accel', 'max_yaw_rate', 'violations': List} | 6 |
-| 72 | **`calculate_distance_to_road_edge`** | **NEW**: Signed distance to drivable area (Waymo) | `trajectory`: np.ndarray (T, 2)<br>`drivable_area`: Polygon optional<br>`lane_centerline`: np.ndarray optional<br>`lane_width`: float optional<br>`vehicle_width`: float = 2.0 | `dict`: {'mean_distance', 'min_distance', 'max_violation', 'violation_rate', 'distances'} | 5 |
-| 73 | **`calculate_driving_direction_compliance`** | **NEW**: Wrong-way detection (nuPlan) | `trajectory`: np.ndarray (T, 2)<br>`headings`: np.ndarray (T,)<br>`lane_centerline`: np.ndarray (N, 2)<br>`angle_threshold`: float = π/2 | `dict`: {'compliance_score', 'wrong_way_distance', 'wrong_way_rate', 'heading_errors'} | 4 |
-| 74 | **`calculate_interaction_metrics`** | **NEW**: Multi-agent proximity analysis (Waymo) | `ego_trajectory`: np.ndarray (T, 2)<br>`other_objects`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`close_distance_threshold`: float = 5.0 | `dict`: {'min_distance', 'mean_distance_to_nearest', 'distance_to_nearest_per_timestep', 'closest_object_id', 'closest_approach_timestep', 'num_close_interactions'} | 6 |
+| 58 | `calculate_l2_distance` | L2 distance between planned and expert trajectory | `pred_trajectory`: np.ndarray (T, 2/3)<br>`gt_trajectory`: np.ndarray (T, 2/3)<br>`weights`: np.ndarray optional | `float`: Weighted average L2 distance | 1 |
+| 59 | `calculate_collision_rate` | Collision rate and statistics | `trajectory`: np.ndarray (T, 2)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`safety_margin`: float = 0.0 | `dict`: {'collision_rate', 'num_collisions', 'first_collision'} | 3 |
+| 60 | **`calculate_collision_with_fault_classification`** | **NEW**: Collision with at-fault classification (nuPlan) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocities`: np.ndarray (T,)<br>`ego_headings`: np.ndarray (T,)<br>`other_vehicles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'total_collisions', 'at_fault_collisions', 'collision_rate', 'collision_types': Counter} | 5+ (types) |
+| 61 | `calculate_progress_score` | Progress along planned route | `trajectory`: np.ndarray (T, 2)<br>`route`: np.ndarray (N, 2)<br>`distance_threshold`: float = 2.0 | `dict`: {'progress_score', 'distance_traveled', 'progress_ratio'} | 3 |
+| 62 | `calculate_route_completion` | Route completion percentage | `trajectory`: np.ndarray (T, 2)<br>`route_waypoints`: List[np.ndarray]<br>`completion_threshold`: float = 5.0 | `dict`: {'completion_rate', 'completed_waypoints', 'total_waypoints'} | 3 |
+| 63 | `average_displacement_error_planning` | ADE/FDE with multi-horizon support | `pred_trajectory`: np.ndarray (T, 2)<br>`expert_trajectory`: np.ndarray (T, 2)<br>`horizons`: List[int] optional | `dict`: {'ADE', 'FDE', 'ADE_H', 'FDE_H'} per horizon | 2+ (per horizon) |
+| 64 | `calculate_lateral_deviation` | Lateral deviation from reference path | `trajectory`: np.ndarray (T, 2)<br>`reference_path`: np.ndarray (N, 2) | `dict`: {'mean_deviation', 'std_deviation', 'max_deviation'} | 3 |
+| 65 | `calculate_heading_error` | Heading angle error with wrapping | `pred_headings`: np.ndarray (T,)<br>`reference_headings`: np.ndarray (T,) | `dict`: {'mean_error', 'std_error', 'max_error'} | 3 |
+| 66 | `calculate_velocity_error` | Velocity error statistics | `pred_velocities`: np.ndarray (T,)<br>`reference_velocities`: np.ndarray (T,) | `dict`: {'mean_error', 'std_error', 'max_error', 'rmse'} | 4 |
+| 67 | **`calculate_comfort_metrics`** | **UPDATED**: Comprehensive comfort with smoothing | `trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`max_longitudinal_accel`: float = 4.0<br>`max_lateral_accel`: float = 4.0<br>`max_jerk`: float = 4.0<br>`max_yaw_rate`: float = 1.0<br>`max_yaw_accel`: float = 1.0<br>`include_lateral`: bool = True<br>`use_smoothing`: bool = False<br>`smoothing_window`: int = 15<br>`smoothing_order`: int = 2 | `dict`: {'mean_longitudinal_accel', 'max_longitudinal_accel', 'mean_lateral_accel', 'max_lateral_accel', 'mean_jerk', 'max_jerk', 'mean_yaw_rate', 'max_yaw_rate', 'mean_yaw_accel', 'max_yaw_accel', 'comfort_violations', 'comfort_rate'} | 12 |
+| 68 | **`calculate_driving_score`** | **UPDATED**: Composite score with nuPlan mode | `pred_trajectory`: np.ndarray (T, 2)<br>`expert_trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`obstacles`: List[np.ndarray] optional<br>`route`: np.ndarray optional<br>`weights`: Dict optional<br>`mode`: str = 'default' or 'nuplan' | `dict`: {'driving_score', 'planning_accuracy', 'safety_score', 'progress_score', 'comfort_score'} + nuPlan specifics | 5+ |
+| 69 | `calculate_planning_kl_divergence` | KL divergence between trajectory distributions | `pred_distribution`: np.ndarray<br>`expert_distribution`: np.ndarray | `float`: KL divergence value | 1 |
+| 70 | `calculate_time_to_collision` | Basic time-to-collision (TTC) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocity`: np.ndarray (T,)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'min_ttc', 'ttc_violations'} | 2 |
+| 71 | **`calculate_time_to_collision_enhanced`** | **NEW**: Enhanced TTC with forward projection (nuPlan) | `ego_trajectory`: np.ndarray (T, 2)<br>`ego_velocities`: np.ndarray (T,)<br>`ego_headings`: np.ndarray (T,)<br>`timestamps`: np.ndarray (T,)<br>`other_vehicles`: List[np.ndarray]<br>`projection_horizon`: float = 1.0<br>`projection_dt`: float = 0.3<br>`ttc_threshold`: float = 3.0<br>`vehicle_size`: Tuple = (4.5, 2.0) | `dict`: {'min_ttc', 'mean_ttc', 'ttc_violations', 'ttc_profile'} | 4 |
+| 72 | `calculate_lane_invasion_rate` | Lane invasion/departure rate | `trajectory`: np.ndarray (T, 2)<br>`lane_boundaries`: Tuple[np.ndarray, np.ndarray]<br>`vehicle_width`: float = 2.0 | `dict`: {'invasion_rate', 'num_invasions', 'max_invasion_distance'} | 3 |
+| 73 | `calculate_collision_severity` | Collision severity based on impact | `trajectory`: np.ndarray (T, 2)<br>`obstacles`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`velocities`: np.ndarray optional | `dict`: {'max_severity', 'severities': List} | 2 |
+| 74 | `check_kinematic_feasibility` | Check trajectory kinematic feasibility | `trajectory`: np.ndarray (T, 2)<br>`timestamps`: np.ndarray (T,)<br>`max_velocity`: float = 15.0<br>`max_acceleration`: float = 4.0<br>`max_lateral_accel`: float = 4.0<br>`max_yaw_rate`: float = 0.5 | `dict`: {'feasible': bool, 'max_velocity', 'max_acceleration', 'max_lateral_accel', 'max_yaw_rate', 'violations': List} | 6 |
+| 75 | **`calculate_distance_to_road_edge`** | **NEW**: Signed distance to drivable area (Waymo) | `trajectory`: np.ndarray (T, 2)<br>`drivable_area`: Polygon optional<br>`lane_centerline`: np.ndarray optional<br>`lane_width`: float optional<br>`vehicle_width`: float = 2.0 | `dict`: {'mean_distance', 'min_distance', 'max_violation', 'violation_rate', 'distances'} | 5 |
+| 76 | **`calculate_driving_direction_compliance`** | **NEW**: Wrong-way detection (nuPlan) | `trajectory`: np.ndarray (T, 2)<br>`headings`: np.ndarray (T,)<br>`lane_centerline`: np.ndarray (N, 2)<br>`angle_threshold`: float = π/2 | `dict`: {'compliance_score', 'wrong_way_distance', 'wrong_way_rate', 'heading_errors'} | 4 |
+| 77 | **`calculate_interaction_metrics`** | **NEW**: Multi-agent proximity analysis (Waymo) | `ego_trajectory`: np.ndarray (T, 2)<br>`other_objects`: List[np.ndarray]<br>`vehicle_size`: Tuple = (4.5, 2.0)<br>`close_distance_threshold`: float = 5.0 | `dict`: {'min_distance', 'mean_distance_to_nearest', 'distance_to_nearest_per_timestep', 'closest_object_id', 'closest_approach_timestep', 'num_close_interactions'} | 6 |
 
 **Key Updates:**
 - ✅ **5 NEW functions** (57, 68, 72, 73, 74) for advanced planning evaluation
@@ -148,32 +173,40 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 
 ---
 
-### Vector Map Metrics (8)
+### Vector Map Metrics (12)
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 75 | `calculate_chamfer_distance_polyline` | Chamfer distance between two polylines | `pred_polyline`: np.ndarray (N, 2)<br>`gt_polyline`: np.ndarray (M, 2) | `dict`: {'chamfer', 'chamfer_pred_to_gt', 'chamfer_gt_to_pred', 'precision_50cm', 'recall_50cm'} | 5 |
-| 76 | `calculate_frechet_distance` | Fréchet distance between polylines | `pred_polyline`: np.ndarray (N, 2)<br>`gt_polyline`: np.ndarray (M, 2) | `float`: Fréchet distance | 1 |
-| 77 | `calculate_iou_polygon` | IoU between two polygons | `pred_polygon`: np.ndarray (N, 2)<br>`gt_polygon`: np.ndarray (M, 2) | `float`: IoU [0, 1] | 1 |
-| 78 | `calculate_centerline_accuracy` | Accuracy of lane centerline extraction | `pred_centerlines`: List[np.ndarray]<br>`gt_centerlines`: List[np.ndarray]<br>`distance_threshold`: float = 0.5 | `dict`: {'precision', 'recall', 'f1'} | 3 |
-| 79 | `calculate_topology_accuracy` | Lane connectivity/topology accuracy | `pred_graph`: Dict<br>`gt_graph`: Dict | `dict`: {'edge_precision', 'edge_recall', 'node_precision', 'node_recall'} | 4 |
-| 80 | `calculate_boundary_iou` | IoU for road/lane boundaries | `pred_boundaries`: List[np.ndarray]<br>`gt_boundaries`: List[np.ndarray]<br>`threshold`: float = 0.5 | `dict`: {'iou', 'precision', 'recall'} | 3 |
-| 81 | `calculate_semantic_segmentation_iou` | Semantic IoU for map elements | `pred_map`: np.ndarray (H, W, C)<br>`gt_map`: np.ndarray (H, W, C)<br>`num_classes`: int | `dict`: {'miou', 'iou_per_class': dict} | 1 + per class |
-| 82 | `calculate_rasterized_map_iou` | IoU for rasterized map representation | `pred_raster`: np.ndarray (H, W)<br>`gt_raster`: np.ndarray (H, W) | `float`: IoU [0, 1] | 1 |
+| 78 | `calculate_chamfer_distance_polyline` | Chamfer distance between two polylines | `pred_polyline`: np.ndarray (N, 2)<br>`gt_polyline`: np.ndarray (M, 2) | `dict`: {'chamfer', 'chamfer_pred_to_gt', 'chamfer_gt_to_pred', 'precision_50cm', 'recall_50cm'} | 5 |
+| 79 | `calculate_frechet_distance` | Fréchet distance between polylines | `pred_polyline`: np.ndarray (N, 2)<br>`gt_polyline`: np.ndarray (M, 2) | `float`: Fréchet distance | 1 |
+| 80 | `calculate_iou_polygon` | IoU between two polygons | `pred_polygon`: np.ndarray (N, 2)<br>`gt_polygon`: np.ndarray (M, 2) | `float`: IoU [0, 1] | 1 |
+| 81 | `calculate_centerline_accuracy` | Accuracy of lane centerline extraction | `pred_centerlines`: List[np.ndarray]<br>`gt_centerlines`: List[np.ndarray]<br>`distance_threshold`: float = 0.5 | `dict`: {'precision', 'recall', 'f1'} | 3 |
+| 82 | `calculate_topology_accuracy` | Lane connectivity/topology accuracy | `pred_graph`: Dict<br>`gt_graph`: Dict | `dict`: {'edge_precision', 'edge_recall', 'node_precision', 'node_recall'} | 4 |
+| 83 | `calculate_boundary_iou` | IoU for road/lane boundaries | `pred_boundaries`: List[np.ndarray]<br>`gt_boundaries`: List[np.ndarray]<br>`threshold`: float = 0.5 | `dict`: {'iou', 'precision', 'recall'} | 3 |
+| 84 | `calculate_semantic_segmentation_iou` | Semantic IoU for map elements | `pred_map`: np.ndarray (H, W, C)<br>`gt_map`: np.ndarray (H, W, C)<br>`num_classes`: int | `dict`: {'miou', 'iou_per_class': dict} | 1 + per class |
+| 85 | `calculate_rasterized_map_iou` | IoU for rasterized map representation | `pred_raster`: np.ndarray (H, W)<br>`gt_raster`: np.ndarray (H, W) | `float`: IoU [0, 1] | 1 |
+| 86 | `calculate_chamfer_distance_3d` | 3D Chamfer distance with elevation awareness | `pred_polyline`: np.ndarray (N, 3)<br>`gt_polyline`: np.ndarray (M, 3)<br>`weight_z`: float = 1.0<br>`visibility_mask`: np.ndarray = None | `dict`: {'chamfer_distance_3d', 'chamfer_distance_xy', 'elevation_error', 'forward_distances', 'backward_distances'} | 5 |
+| 87 | `calculate_frechet_distance_3d` | 3D Fréchet distance for curved lanes | `pred_polyline`: np.ndarray (N, 3)<br>`gt_polyline`: np.ndarray (M, 3)<br>`weight_z`: float = 1.0 | `dict`: {'frechet_distance_3d', 'frechet_distance_xy'} | 2 |
+| 88 | `calculate_online_lane_segment_metric` | Temporal consistency for streaming evaluation | `detections_sequence`: List[List[Dict]]<br>`ground_truth_sequence`: List[List[Dict]]<br>`iou_threshold`: float = 0.5<br>`consistency_weight`: float = 0.5 | `dict`: {'ols', 'detection_score', 'consistency_score', 'avg_precision', 'avg_recall', 'id_switches'} | 6 |
+| 89 | `calculate_per_category_metrics` | Per-category lane element evaluation | `predictions`: List[Dict] (with 'category')<br>`ground_truth`: List[Dict] (with 'category')<br>`iou_threshold`: float = 0.5 | `dict`: {'per_category': {category: {'precision', 'recall', 'f1', 'ap'}}, 'overall': {'macro_precision', 'macro_recall', 'macro_f1', 'macro_ap'}} | 4 per category + 4 overall |
 
 ---
 
-### Simulation Quality Metrics (7)
+### Simulation Quality Metrics (11)
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 83 | `calculate_sensor_noise_metrics` | Sensor noise characterization | `sensor_data`: np.ndarray<br>`ground_truth`: np.ndarray<br>`sensor_type`: str | `dict`: {'mean_error', 'std_error', 'bias', 'snr', 'outlier_rate'} | 5 |
-| 84 | `calculate_lidar_accuracy` | LiDAR simulation accuracy | `sim_points`: np.ndarray (N, 3/4)<br>`real_points`: np.ndarray (M, 3/4)<br>`voxel_size`: float = 0.1 | `dict`: {'chamfer_distance', 'coverage', 'density_error'} | 3 |
-| 85 | `calculate_camera_realism` | Camera image realism metrics | `sim_image`: np.ndarray (H, W, 3)<br>`real_image`: np.ndarray (H, W, 3) | `dict`: {'ssim', 'psnr', 'lpips', 'fid'} | 4 |
-| 86 | `calculate_motion_realism` | Motion/dynamics realism | `sim_trajectory`: np.ndarray (T, 7)<br>`real_trajectory`: np.ndarray (T, 7) | `dict`: {'velocity_error', 'acceleration_error', 'jerk_error'} | 3 |
-| 87 | `calculate_scenario_diversity` | Diversity of simulated scenarios | `scenarios`: List[Dict]<br>`feature_extractor`: Callable | `dict`: {'diversity_score', 'coverage', 'uniqueness'} | 3 |
-| 88 | `calculate_sim2real_gap` | Sim-to-real performance gap | `sim_metrics`: Dict<br>`real_metrics`: Dict | `dict`: {metric_name: gap for each metric} | N (per metric) |
-| 89 | `calculate_temporal_consistency` | Temporal consistency across frames | `sim_sequence`: List[np.ndarray]<br>`real_sequence`: List[np.ndarray] | `dict`: {'optical_flow_error', 'frame_consistency'} | 2 |
+| 90 | `calculate_camera_image_quality` | Camera visual realism validation | `sim_images`: np.ndarray (N, H, W, C)<br>`real_images`: np.ndarray (N, H, W, C)<br>`metrics`: List[str] = ['psnr', 'color_distribution', 'brightness', 'contrast'] | `dict`: {'psnr', 'ssim', 'lpips', 'fid', 'color_distribution', 'brightness', 'contrast'} | 7 |
+| 91 | `calculate_lidar_point_cloud_quality` | LiDAR geometric fidelity | `sim_points`: np.ndarray (N, 3/4)<br>`real_points`: np.ndarray (M, 3/4)<br>`max_range`: float = 100.0 | `dict`: {'chamfer_distance', 'point_density', 'range_distribution', 'intensity_correlation', 'vertical_distribution'} | 5 |
+| 92 | `calculate_radar_quality` | Radar detection realism | `sim_detections`: np.ndarray (N, 5) [x,y,z,vel,rcs]<br>`real_detections`: np.ndarray (M, 5) | `dict`: {'detection_density_ratio', 'velocity_distribution', 'rcs_distribution', 'spatial_accuracy'} | 4 |
+| 93 | `calculate_sensor_noise_characteristics` | Sensor noise pattern matching | `sim_measurements`: np.ndarray (N, D)<br>`real_measurements`: np.ndarray (M, D)<br>`ground_truth`: np.ndarray optional | `dict`: {'noise_std_ratio', 'noise_distribution_ks', 'bias_sim', 'bias_real', 'snr_ratio'} | 5 |
+| 94 | `calculate_multimodal_sensor_alignment` | Multi-sensor fusion quality | `camera_detections`: np.ndarray (N, 7)<br>`lidar_detections`: np.ndarray (M, 7)<br>`camera_to_lidar_transform`: np.ndarray optional | `dict`: {'spatial_alignment_error', 'detection_agreement_rate', 'size_consistency', 'temporal_sync_error'} | 4 |
+| 95 | `calculate_temporal_consistency` | Frame-to-frame coherence | `detections_sequence`: List[np.ndarray]<br>`fps`: float = 10.0 | `dict`: {'detection_count_variance', 'motion_smoothness', 'appearance_disappearance_rate', 'frame_to_frame_consistency'} | 4 |
+| 96 | `calculate_perception_sim2real_gap` | Detection performance gap | `sim_detections`: List[Dict]<br>`real_detections`: List[Dict]<br>`metrics`: List[str] = ['recall', 'precision'] | `dict`: {'ap_gap', 'recall_gap', 'precision_gap', 'performance_drop'} | 4 |
+| 97 | `calculate_weather_simulation_quality` | Weather/environment realism | `sim_data`: Dict[str, np.ndarray]<br>`real_data`: Dict[str, np.ndarray]<br>`weather_type`: str = 'rain'<br>`metrics`: List[str] optional | `dict`: {'intensity_distribution', 'visibility_range', 'temporal_consistency', 'spatial_distribution', 'particle_density', 'lighting_histogram', 'shadow_realism'} | 7+ |
+| 98 | `calculate_vehicle_dynamics_quality` | Physics/dynamics realism | `sim_trajectories`: np.ndarray (N, T, D)<br>`real_trajectories`: np.ndarray (N, T, D)<br>`maneuver_type`: str = 'general'<br>`metrics`: List[str] optional | `dict`: {'acceleration_profile', 'braking_distance', 'lateral_dynamics', 'yaw_rate', 'trajectory_smoothness', 'speed_distribution', 'reaction_time'} | 7+ |
+| 99 | `calculate_semantic_consistency` | Scene composition realism | `sim_scene_data`: Dict[str, np.ndarray]<br>`real_scene_data`: Dict[str, np.ndarray]<br>`scene_type`: str = 'mixed'<br>`metrics`: List[str] optional | `dict`: {'object_distribution_kl', 'vehicle_count_ratio', 'pedestrian_count_ratio', 'vehicle_speed_distribution', 'inter_vehicle_spacing', 'pedestrian_speed_distribution', 'traffic_density'} | 7+ |
+| 100 | `calculate_occlusion_visibility_quality` | Occlusion pattern realism | `sim_detections`: Dict[str, np.ndarray]<br>`real_detections`: Dict[str, np.ndarray]<br>`metrics`: List[str] optional | `dict`: {'occlusion_kl_divergence', 'occlusion_mean_error', 'truncation_kl_divergence', 'visibility_correlation', 'range_visibility_correlation'} | 5+ |
 
 ---
 
@@ -181,14 +214,14 @@ Complete reference of all 98 exported metric calculation interfaces in the `adme
 
 | # | Function | Description | Input | Output | Metric Count |
 |---|----------|-------------|-------|--------|--------------|
-| 90 | `calculate_iou_matrix` | Compute IoU matrix between two sets of boxes | `boxes1`: List[np.ndarray]<br>`boxes2`: List[np.ndarray]<br>`metric_type`: str = "3d" | `np.ndarray`: (N, M) IoU matrix | N/A |
-| 91 | `greedy_matching` | Greedy matching based on IoU/distance | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `List[Tuple]`: Matched indices | N/A |
-| 92 | `hungarian_matching` | Hungarian (optimal) matching | `cost_matrix`: np.ndarray | `Tuple`: (row_indices, col_indices) | N/A |
-| 93 | `transform_boxes` | Transform boxes to different coordinate frame | `boxes`: np.ndarray<br>`transform`: np.ndarray (4, 4) | `np.ndarray`: Transformed boxes | N/A |
-| 94 | `convert_box_format` | Convert between box formats | `boxes`: np.ndarray<br>`input_format`: str<br>`output_format`: str | `np.ndarray`: Converted boxes | N/A |
-| 95 | `filter_boxes_by_range` | Filter boxes by distance range | `boxes`: List[Dict]<br>`min_distance`: float = 0<br>`max_distance`: float = 100 | `List[Dict]`: Filtered boxes | N/A |
-| 96 | `visualize_boxes_bev` | Visualize boxes in bird's-eye view | `boxes`: List[np.ndarray]<br>`image_size`: Tuple = (800, 800)<br>`colors`: List = None | `np.ndarray`: BEV image | N/A |
-| 97 | `plot_trajectory` | Plot 2D/3D trajectory | `trajectory`: np.ndarray (T, 2/3)<br>`gt_trajectory`: np.ndarray = None<br>`title`: str = "" | `matplotlib.figure.Figure` | N/A |
-| 98 | `nms` | Non-maximum suppression for boxes | `boxes`: List[np.ndarray]<br>`scores`: List[float]<br>`iou_threshold`: float = 0.5 | `List[int]`: Indices to keep | N/A |
+| 101 | `calculate_iou_matrix` | Compute IoU matrix between two sets of boxes | `boxes1`: List[np.ndarray]<br>`boxes2`: List[np.ndarray]<br>`metric_type`: str = "3d" | `np.ndarray`: (N, M) IoU matrix | N/A |
+| 102 | `greedy_matching` | Greedy matching based on IoU/distance | `predictions`: List[Dict]<br>`ground_truth`: List[Dict]<br>`iou_threshold`: float = 0.5 | `List[Tuple]`: Matched indices | N/A |
+| 103 | `hungarian_matching` | Hungarian (optimal) matching | `cost_matrix`: np.ndarray | `Tuple`: (row_indices, col_indices) | N/A |
+| 104 | `transform_boxes` | Transform boxes to different coordinate frame | `boxes`: np.ndarray<br>`transform`: np.ndarray (4, 4) | `np.ndarray`: Transformed boxes | N/A |
+| 105 | `convert_box_format` | Convert between box formats | `boxes`: np.ndarray<br>`input_format`: str<br>`output_format`: str | `np.ndarray`: Converted boxes | N/A |
+| 106 | `filter_boxes_by_range` | Filter boxes by distance range | `boxes`: List[Dict]<br>`min_distance`: float = 0<br>`max_distance`: float = 100 | `List[Dict]`: Filtered boxes | N/A |
+| 107 | `visualize_boxes_bev` | Visualize boxes in bird's-eye view | `boxes`: List[np.ndarray]<br>`image_size`: Tuple = (800, 800)<br>`colors`: List = None | `np.ndarray`: BEV image | N/A |
+| 108 | `plot_trajectory` | Plot 2D/3D trajectory | `trajectory`: np.ndarray (T, 2/3)<br>`gt_trajectory`: np.ndarray = None<br>`title`: str = "" | `matplotlib.figure.Figure` | N/A |
+| 109 | `nms` | Non-maximum suppression for boxes | `boxes`: List[np.ndarray]<br>`scores`: List[float]<br>`iou_threshold`: float = 0.5 | `List[int]`: Indices to keep | N/A |
 
 

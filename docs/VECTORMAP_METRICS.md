@@ -18,6 +18,11 @@ Comprehensive metrics for evaluating HD map vector detection, focusing on lane l
     - [Endpoint Error](#endpoint-error)
     - [Direction Accuracy](#direction-accuracy)
     - [Vector Map AP](#vector-map-ap)
+  - [Advanced Metrics](#advanced-metrics)
+    - [3D Chamfer Distance](#3d-chamfer-distance)
+    - [3D Fréchet Distance](#3d-fréchet-distance)
+    - [Online Lane Segment (OLS)](#online-lane-segment-ols)
+    - [Per-Category Metrics](#per-category-metrics)
   - [Usage Examples](#usage-examples)
     - [Complete Evaluation Pipeline](#complete-evaluation-pipeline)
     - [Benchmark Comparison](#benchmark-comparison)
@@ -473,6 +478,253 @@ print(f"AP@1.0m: {result['AP_per_threshold'][1.0]:.3f}")
 
 ---
 
+## Advanced Metrics
+
+### 3D Chamfer Distance
+
+**Purpose**: Evaluate 3D lane polylines with elevation information.
+
+**Formula**:
+```
+Chamfer_3D(P, G) = 1/2 * [1/|P| Σ min ||p - g||₃D + 1/|G| Σ min ||g - p||₃D]
+                                  g∈G                    p∈P
+where ||·||₃D includes weighted z-axis: √(Δx² + Δy² + (w_z·Δz)²)
+```
+
+**Use Cases**:
+- OpenLane-V2 benchmark (3D lane detection)
+- Elevation-aware HD mapping
+- Multi-level road structures (overpasses, tunnels)
+- Highway ramps with significant grade changes
+
+**Returns**:
+```python
+{
+    'chamfer_distance_3d': float,      # Full 3D distance
+    'chamfer_distance_xy': float,      # Horizontal distance (reference)
+    'elevation_error': float,          # Mean absolute Z error
+    'chamfer_pred_to_gt': float,       # Forward distance
+    'chamfer_gt_to_pred': float        # Backward distance
+}
+```
+
+**Usage**:
+```python
+from admetrics.vectormap import calculate_chamfer_distance_3d
+
+# 3D lane with elevation
+pred_lane_3d = np.array([[0, 0, 0], [10, 0, 0.5], [20, 0, 1.0]])
+gt_lane_3d = np.array([[0, 0, 0], [10, 0, 0.4], [20, 0, 0.9]])
+
+result = calculate_chamfer_distance_3d(pred_lane_3d, gt_lane_3d, weight_z=1.0)
+print(f"3D Chamfer: {result['chamfer_distance_3d']:.3f}m")
+print(f"2D Chamfer: {result['chamfer_distance_xy']:.3f}m")
+print(f"Elevation Error: {result['elevation_error']:.3f}m")
+```
+
+**Parameters**:
+- `weight_z`: Weight for elevation differences (default 1.0). Use higher values (e.g., 2.0) to emphasize vertical accuracy.
+
+**Interpretation**:
+- **< 0.3m**: Excellent 3D accuracy
+- **0.3-1.0m**: Good 3D accuracy
+- **> 1.0m**: Poor 3D accuracy
+- Compare `chamfer_distance_3d` vs `chamfer_distance_xy` to assess elevation contribution
+
+---
+
+### 3D Fréchet Distance
+
+**Purpose**: Curve similarity for 3D lanes considering ordering and continuity.
+
+**Use Cases**:
+- Curved ramps with elevation changes
+- Complex 3D road geometry
+- Topology-aware 3D lane evaluation
+
+**Returns**:
+```python
+{
+    'frechet_distance_3d': float,      # 3D Fréchet distance
+    'frechet_distance_xy': float       # 2D reference
+}
+```
+
+**Usage**:
+```python
+from admetrics.vectormap import calculate_frechet_distance_3d
+
+curved_3d = np.array([[0, 0, 0], [5, 2, 0.5], [10, 0, 1.0]])
+gt_3d = np.array([[0, 0, 0.1], [5, 2, 0.6], [10, 0, 1.1]])
+
+result = calculate_frechet_distance_3d(curved_3d, gt_3d, weight_z=1.5)
+print(f"3D Fréchet: {result['frechet_distance_3d']:.3f}m")
+```
+
+---
+
+### Online Lane Segment (OLS)
+
+**Purpose**: Evaluate temporal consistency and tracking quality for online HD map construction.
+
+**Formula**:
+```
+OLS = (1 - w_c) × Detection_Score + w_c × Consistency_Score
+
+Detection_Score = Average F1 across frames
+Consistency_Score = Correct_Tracks / Total_Tracks
+```
+
+**Use Cases**:
+- OpenLane-V2 online evaluation
+- Streaming map construction
+- Temporal lane tracking
+- Multi-frame aggregation assessment
+
+**Metrics**:
+- **Detection Score**: Average per-frame F1 score
+- **Consistency Score**: Fraction of correctly maintained lane IDs across frames
+- **ID Switches**: Number of incorrect lane identity changes
+- **OLS**: Combined score (default weight: 30% consistency, 70% detection)
+
+**Returns**:
+```python
+{
+    'ols': float,                      # Overall Online Lane Segment score
+    'detection_score': float,          # Avg F1 across frames
+    'consistency_score': float,        # Temporal consistency
+    'avg_precision': float,            # Avg precision
+    'avg_recall': float,               # Avg recall
+    'id_switches': int                 # Number of identity switches
+}
+```
+
+**Usage**:
+```python
+from admetrics.vectormap import calculate_online_lane_segment_metric
+
+# Sequence of frames (each frame is a list of lane polylines)
+pred_sequence = [
+    [lane1_frame1, lane2_frame1, lane3_frame1],  # Frame 1
+    [lane1_frame2, lane2_frame2, lane3_frame2],  # Frame 2
+    [lane1_frame3, lane2_frame3, lane3_frame3],  # Frame 3
+]
+
+gt_sequence = [
+    [gt_lane1_f1, gt_lane2_f1, gt_lane3_f1],
+    [gt_lane1_f2, gt_lane2_f2, gt_lane3_f2],
+    [gt_lane1_f3, gt_lane2_f3, gt_lane3_f3],
+]
+
+result = calculate_online_lane_segment_metric(
+    pred_sequence, gt_sequence,
+    distance_threshold=1.0,
+    consistency_weight=0.3
+)
+
+print(f"OLS Score: {result['ols']:.3f}")
+print(f"Detection: {result['detection_score']:.3f}")
+print(f"Consistency: {result['consistency_score']:.3f}")
+print(f"ID Switches: {result['id_switches']}")
+```
+
+**Interpretation**:
+- **OLS > 0.8**: Excellent online performance
+- **OLS 0.6-0.8**: Good online performance
+- **OLS < 0.6**: Poor temporal consistency or detection
+- **ID Switches = 0**: Perfect tracking
+- **Low Detection + High Consistency**: Stable but incomplete detection
+- **High Detection + Low Consistency**: Good per-frame but unstable tracking
+
+---
+
+### Per-Category Metrics
+
+**Purpose**: Separate evaluation for different map element types.
+
+**Supported Categories**:
+- `lane_divider`: Lane boundary markings (dashed, solid, double)
+- `road_edge`: Road boundaries and curbs
+- `crosswalk`: Pedestrian crossing areas
+- `stop_line`: Traffic control lines
+- `centerline`: Lane centerlines
+- Custom categories
+
+**Use Cases**:
+- Category-specific performance analysis
+- Imbalanced dataset evaluation
+- Focused improvement on specific element types
+- Benchmark reporting by category
+
+**Returns**:
+```python
+{
+    'lane_divider': {
+        'precision': float,
+        'recall': float,
+        'f1_score': float,
+        'ap': float,
+        'num_pred': int,
+        'num_gt': int
+    },
+    'road_edge': {...},
+    'crosswalk': {...},
+    ...
+    'overall': {
+        'precision': float,      # Macro-average
+        'recall': float,
+        'f1_score': float,
+        'map': float,
+        'num_categories': int
+    }
+}
+```
+
+**Usage**:
+```python
+from admetrics.vectormap import calculate_per_category_metrics
+
+# Predictions with category labels
+pred_lanes = [
+    {'polyline': np.array([[0, 0], [10, 0]]), 'category': 'lane_divider', 'score': 0.95},
+    {'polyline': np.array([[0, 3], [10, 3]]), 'category': 'road_edge', 'score': 0.88},
+    {'polyline': np.array([[0, 10], [10, 10]]), 'category': 'crosswalk', 'score': 0.75}
+]
+
+gt_lanes = [
+    {'polyline': np.array([[0, 0.1], [10, 0.1]]), 'category': 'lane_divider'},
+    {'polyline': np.array([[0, 3.1], [10, 3.1]]), 'category': 'road_edge'},
+    {'polyline': np.array([[0, 10.1], [10, 10.1]]), 'category': 'crosswalk'}
+]
+
+result = calculate_per_category_metrics(
+    pred_lanes, gt_lanes,
+    categories=['lane_divider', 'road_edge', 'crosswalk'],
+    distance_threshold=1.0
+)
+
+# Per-category results
+for category in ['lane_divider', 'road_edge', 'crosswalk']:
+    cat_result = result[category]
+    print(f"\n{category}:")
+    print(f"  Precision: {cat_result['precision']:.1%}")
+    print(f"  Recall: {cat_result['recall']:.1%}")
+    print(f"  F1: {cat_result['f1_score']:.3f}")
+    print(f"  AP: {cat_result['ap']:.3f}")
+    print(f"  Count: {cat_result['num_gt']} GT, {cat_result['num_pred']} pred")
+
+# Overall (macro-average)
+print(f"\nOverall mAP: {result['overall']['map']:.3f}")
+```
+
+**Applications**:
+- **Benchmark Reporting**: Standard format for competition leaderboards
+- **Ablation Studies**: Identify which categories need improvement
+- **Class Imbalance**: Prevent dominant categories from masking poor performance on rare elements
+- **Multi-Task Analysis**: Separate performance for different prediction heads
+
+---
+
 ## Usage Examples
 
 ### Complete Evaluation Pipeline
@@ -480,14 +732,17 @@ print(f"AP@1.0m: {result['AP_per_threshold'][1.0]:.3f}")
 ```python
 import numpy as np
 from admetrics.vectormap import (
-    chamfer_distance_polyline,
-    frechet_distance,
-    polyline_iou,
-    lane_detection_metrics,
-    topology_metrics,
-    endpoint_error,
-    direction_accuracy,
-    vectormap_ap
+    calculate_chamfer_distance_polyline,
+    calculate_frechet_distance,
+    calculate_polyline_iou,
+    calculate_lane_detection_metrics,
+    calculate_topology_metrics,
+    calculate_endpoint_error,
+    calculate_direction_accuracy,
+    calculate_vectormap_ap,
+    calculate_chamfer_distance_3d,
+    calculate_online_lane_segment_metric,
+    calculate_per_category_metrics
 )
 
 # Load predictions and ground truth
@@ -853,12 +1108,30 @@ Vector map metrics provide comprehensive evaluation for HD map detection:
 | **Endpoint Error** | Merge/split accuracy | Lane transitions | 1.0m |
 | **Direction** | Flow alignment | Semantic correctness | 10° |
 | **Vector Map AP** | Overall performance | Multi-threshold | 0.5-2.0m |
+| **3D Chamfer** | 3D lane accuracy | Elevation-aware | 1.0m (3D) |
+| **3D Fréchet** | 3D curve similarity | 3D shape matching | 2.0m (3D) |
+| **OLS** | Temporal consistency | Online evaluation | 0.7+ score |
+| **Per-Category** | Element-specific | Category analysis | Varies |
 
 **Recommended Workflow**:
+
+**Basic Evaluation**:
 1. Start with **Chamfer Distance** (quick, interpretable)
 2. Add **Lane Detection Metrics** (precision/recall)
 3. Evaluate **Topology** (if applicable)
 4. Compute **Vector Map AP** (comprehensive)
 5. Check **Endpoint/Direction** (semantic validation)
 
+**Advanced Evaluation**:
+6. Use **3D Chamfer/Fréchet** for elevation-aware datasets (OpenLane-V2)
+7. Apply **OLS** for online/streaming scenarios
+8. Compute **Per-Category Metrics** for detailed analysis
+
+**By Use Case**:
+- **2D Lanes (nuScenes)**: Chamfer, Detection, Topology, AP
+- **3D Lanes (OpenLane-V2)**: 3D Chamfer, 3D Fréchet, Topology, OLS
+- **Multi-Category (Argoverse 2)**: Per-Category, Detection, AP
+- **Online Construction**: OLS, Detection, Consistency
+
 For questions or issues, see the [examples](../examples/vectormap_evaluation.py) or consult the [API reference](api_reference.md).
+

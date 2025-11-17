@@ -15,6 +15,10 @@ from .vectormap import (
     calculate_endpoint_error,
     calculate_direction_accuracy,
     calculate_vectormap_ap,
+    calculate_chamfer_distance_3d,
+    calculate_frechet_distance_3d,
+    calculate_online_lane_segment_metric,
+    calculate_per_category_metrics,
 )
 
 __all__ = [
@@ -26,4 +30,8 @@ __all__ = [
     'calculate_endpoint_error',
     'calculate_direction_accuracy',
     'calculate_vectormap_ap',
+    'calculate_chamfer_distance_3d',
+    'calculate_frechet_distance_3d',
+    'calculate_online_lane_segment_metric',
+    'calculate_per_category_metrics',
 ]
