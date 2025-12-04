@@ -35,27 +35,6 @@ A comprehensive Python library for evaluating autonomous driving perception and 
 - **CARLA**: End-to-End Planning
 - **SemanticKITTI/Occ3D**: Occupancy Prediction
 
-## Installation
-
-### From GitHub
-
-```bash
-git clone https://github.com/naurril/ad-metrics.git
-cd ad-metrics
-pip install -e .
-```
-
-### Requirements
-
-- Python >= 3.8
-- NumPy >= 1.20.0
-- SciPy >= 1.7.0
-- scikit-learn >= 1.0.0
-- pytest
-
-Optional:
-- matplotlib >= 3.3.0 (visualization)
-- open3d >= 0.13.0 (3D visualization)
 
 
 ## Quick Start
@@ -82,8 +61,6 @@ Optional:
 
 
 ## Testing
-
-**Current Status: 45 tracking tests passing, 92% code coverage on tracking module, 100% metric function coverage**
 
 Run all tests:
 ```bash
@@ -125,11 +102,11 @@ pytest tests/test_localization.py -v
 | `utils/transforms.py` | 11 | - | 95% |
 | **Total** | **45+** | **124** | **92%** |
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 📖 Citation
+## Citation
 
 If you use this library in your research, please cite:
 
