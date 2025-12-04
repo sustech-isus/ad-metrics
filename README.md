@@ -3,7 +3,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-45%20passed-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-green.svg)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-green.svg)](tests/)
 
 A comprehensive Python library for evaluating autonomous driving perception and planning systems across **124 metric functions** (260+ individual metrics) in 9 categories: detection, tracking, trajectory prediction, localization, occupancy, planning, vector maps, simulation quality, and utilities.
 
@@ -74,7 +74,6 @@ pytest --cov=admetrics tests/
 
 Run specific categories:
 ```bash
-pytest tests/test_detection/ -v
 pytest tests/test_tracking.py -v
 pytest tests/test_localization.py -v
 ```
@@ -88,19 +87,19 @@ pytest tests/test_localization.py -v
 | `detection/nds.py` | 5 | 3 | 96% |
 | `detection/aos.py` | 18 | 4 | 96% |
 | `detection/distance.py` | 31 | 6 | 94% |
-| `detection/confusion.py` | 8 | 4 | 96% |
-| `tracking/tracking.py` | 45 | 21 | 92% |
+| `detection/confusion.py` | 8 | 4 | 90% |
+| `tracking/tracking.py` | 45 | 21 | 89% |
 | `prediction/trajectory.py` | 26 | 10 | 95% |
 | `localization/localization.py` | 27 | 8 | 91% |
 | `occupancy/occupancy.py` | 39 | 6 | 98% |
 | `planning/planning.py` | 42 | 11 | 95% |
 | `vectormap/vectormap.py` | 45 | 8 | 98% |
-| `simulation/sensor_quality.py` | 20 | 7 | 91% |
-| `utils/visualization.py` | 35 | - | 91% |
+| `simulation/sensor_quality.py` | 20 | 7 | 71% |
+| `utils/visualization.py` | 35 | - | 0% |
 | `utils/matching.py` | 6 | - | 74% |
 | `utils/nms.py` | 8 | - | 88% |
 | `utils/transforms.py` | 11 | - | 95% |
-| **Total** | **45+** | **124** | **92%** |
+| **Total** | **45+** | **124** | **85%** |
 
 ## License
 
